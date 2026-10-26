@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from powercontext.builtin.persistence.cursors import SourceCursorRepository
@@ -24,6 +24,41 @@ from powercontext.builtin.persistence.database import AsyncDatabase
 from powercontext.builtin.persistence.processing_intents import ArtifactProcessingIntentRepository
 from powercontext.builtin.persistence.supervision import ArtifactProcessingFence, ArtifactProcessingLeaseRepository
 from powercontext.builtin.persistence.tables import PROFILE_POLICIES_TABLE, SOURCE_JOURNAL_HEADS_TABLE
+
+
+async def request_count_admission(
+    connection: AsyncConnection,
+    scope_id: str,
+    binding_name: str,
+    threshold: int,
+    /,
+) -> bool:
+    """Accept one invocation once enough journal identities wait after the Cursor.
+
+    Journal positions are contiguous per Scope, so the pending identity count is
+    exactly the committed head minus the Family's own committed Cursor. Existing
+    accepted work is never incremented again; the Worker re-evaluates the
+    remainder after its own window commits.
+    """
+
+    heads = SOURCE_JOURNAL_HEADS_TABLE
+    await connection.execute(
+        update(heads).where(heads.c.scope_id == scope_id).values(position=heads.c.position)
+    )
+    head = int(
+        await connection.scalar(select(heads.c.position).where(heads.c.scope_id == scope_id).with_for_update()) or 0
+    )
+    cursor = await SourceCursorRepository().load(connection, scope_id, binding_name)
+    if head - (0 if cursor is None else cursor.cursor.sequence) < threshold:
+        return False
+    intents = ArtifactProcessingIntentRepository()
+    intent = await intents.load(connection, scope_id, binding_name, for_update=True)
+    if intent is None:
+        intent = await intents.ensure(connection, scope_id, binding_name)
+    if intent.requested_generation > intent.handled_generation:
+        return False
+    await intents.request(connection, scope_id, binding_name)
+    return True
 
 
 async def enabled_profile_scopes(connection: AsyncConnection, scope_ids: tuple[str, ...]) -> frozenset[str]:
@@ -48,10 +83,18 @@ async def enabled_profile_scopes(connection: AsyncConnection, scope_ids: tuple[s
 class SourceProcessingPendingProvider:
     """Inspect journal metadata, never Source bodies, prompts, or models."""
 
-    def __init__(self, database: AsyncDatabase, binding_name: str, artifact_family: str) -> None:
+    def __init__(
+        self,
+        database: AsyncDatabase,
+        binding_name: str,
+        artifact_family: str,
+        *,
+        source_count_threshold: int | None = None,
+    ) -> None:
         self._database = database
         self._binding = binding_name
         self._family = artifact_family
+        self._source_count_threshold = source_count_threshold
 
     async def reconcile(self, after_scope_id: str | None, limit: int, *, fence: ArtifactProcessingFence) -> str | None:
         heads = SOURCE_JOURNAL_HEADS_TABLE
@@ -70,6 +113,14 @@ class SourceProcessingPendingProvider:
                 cursor = await cursors.load(connection, scope, self._binding)
                 if int(high) <= (0 if cursor is None else cursor.cursor.sequence):
                     continue
+                # Restart recovery: a threshold met just before a crash must
+                # still accept work even when no time condition is configured.
+                # Take the journal-head lock before the intent lock, matching
+                # capture order.
+                if self._source_count_threshold is not None:
+                    await request_count_admission(
+                        connection, scope, self._binding, self._source_count_threshold
+                    )
                 intent = await intents.load(connection, scope, self._binding, for_update=True)
                 if intent is None or intent.dirty_generation == intent.clean_generation:
                     await intents.mark_dirty(connection, scope, self._binding)

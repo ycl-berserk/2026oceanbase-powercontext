@@ -602,6 +602,7 @@ async def open_builtin_runtime(
                 scope_evictor=contexts.evict,
                 scope_cache_observer=scope_cache_observer,
                 scope_ids=contexts.scope_ids,
+                lifecycle_database=contexts.database,
                 review_service=contexts.review,
                 profiles=contexts.profiles,
                 subject_sources=contexts.subject_sources,
@@ -771,6 +772,10 @@ def _artifact_processing_bindings(  # noqa: C901 - validate and assemble one reg
             entrypoint = partial(run_family_worker, FamilyWorkerSpec(config=config, worker_security=worker_security))
         interval = None if family == "profile" else automatic[family]
         binding = canonical[family]
+        count_threshold = {
+            "memory": config.runtime.memory_source_count_threshold,
+            "topic-memory": config.runtime.topic_memory_source_count_threshold,
+        }.get(family)
         configured.append(
             ArtifactProcessingBinding(
                 binding_name=binding,
@@ -785,8 +790,14 @@ def _artifact_processing_bindings(  # noqa: C901 - validate and assemble one reg
                 timezone=config.runtime.profile_timezone if family == "profile" else "Asia/Shanghai",
                 pending_provider=None
                 if family == "skill"
-                else SourceProcessingPendingProvider(contexts.database, binding, family),
+                else SourceProcessingPendingProvider(
+                    contexts.database,
+                    binding,
+                    family,
+                    source_count_threshold=count_threshold,
+                ),
                 automatic_scope_filter=enabled_profile_scopes if family == "profile" else None,
+                source_count_threshold=count_threshold,
             )
         )
     _validate_processing_registrations(configured)

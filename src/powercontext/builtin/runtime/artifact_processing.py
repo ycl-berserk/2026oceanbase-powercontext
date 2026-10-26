@@ -67,6 +67,7 @@ from powercontext.builtin.runtime.processing_contracts import (
     ArtifactProcessingWorkerOutcome,
     WorkerEntrypoint,
 )
+from powercontext.builtin.runtime.processing_discovery import request_count_admission
 from powercontext.builtin.runtime.protocols import RuntimeTracing
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,9 @@ class ArtifactProcessingBinding:
     # Only automatic admission is filtered; already accepted requests retain
     # their own Worker authorization and domain completion semantics.
     automatic_scope_filter: Callable[[AsyncConnection, tuple[str, ...]], Awaitable[frozenset[str]]] | None = None
+    # Accept one invocation once this many journal identities wait after the
+    # Family's committed Source cursor. None keeps time-only admission.
+    source_count_threshold: int | None = None
 
     def __post_init__(self) -> None:
         if not self.binding_name or self.binding_name != self.binding_name.strip():
@@ -131,6 +135,10 @@ class ArtifactProcessingBinding:
             raise ValueError("max_workers must be a positive integer")  # noqa: TRY003
         if self.worker_timeout_seconds <= 0:
             raise ValueError("worker_timeout_seconds must be positive")  # noqa: TRY003
+        if self.source_count_threshold is not None and (
+            type(self.source_count_threshold) is not int or self.source_count_threshold < 1
+        ):
+            raise ValueError("source_count_threshold must be a positive integer")  # noqa: TRY003
         if self.automatic_processing_interval is not None:
             if self.automatic_processing_interval.total_seconds() <= 0:
                 raise ValueError("automatic interval must be positive")  # noqa: TRY003
@@ -515,6 +523,37 @@ class ArtifactProcessingSupervisor:
             if binding_name is None or binding_name == name:
                 state.discovery_pending = True
         self._wake.set()
+
+    async def admit_source_count(self, scope_id: str) -> bool:
+        """Accept at most one new invocation per counting Family after a write.
+
+        The journal head lock serializes this decision with later captures, so
+        an accepted request always covers every identity committed before it.
+        Failures stay recoverable: startup reconciliation repeats the same
+        decision from durable state.
+        """
+
+        if self._fence is None or self._lease_lost:
+            return False
+        admitted = False
+        for state in self._families.values():
+            threshold = state.binding.source_count_threshold
+            if threshold is None:
+                continue
+            try:
+                async with self._database.transaction() as connection:
+                    await self._leases.require_fence(connection, self._require_current_fence())
+                    if await request_count_admission(connection, scope_id, state.binding.binding_name, threshold):
+                        admitted = True
+            except ArtifactProcessingLeadershipLostError:
+                self._lease_lost = True
+                self._wake.set()
+                return admitted
+            except Exception as error:
+                self._log_failure(state, None, error, "count_admission")
+        if admitted:
+            self.wake()
+        return admitted
 
     async def close(self) -> None:
         self._stop.set()
@@ -996,6 +1035,24 @@ class ArtifactProcessingSupervisor:
                 state.completed += 1
                 if row.requested_generation > row.handled_generation:
                     self.wake(state.binding.binding_name)
+                # One window is the whole count-triggered invocation. Re-apply
+                # only the count condition to the new Cursor; a flush or time
+                # admission may have covered the remainder meanwhile.
+                if state.binding.source_count_threshold is not None:
+                    try:
+                        async with self._database.transaction() as connection:
+                            await self._leases.require_fence(connection, self._require_current_fence())
+                            if await request_count_admission(
+                                connection,
+                                scope,
+                                state.binding.binding_name,
+                                state.binding.source_count_threshold,
+                            ):
+                                self.wake(state.binding.binding_name)
+                    except ArtifactProcessingLeadershipLostError:
+                        raise
+                    except Exception as error:
+                        self._log_failure(state, running.assignment, error, "count_admission")
             except (ArtifactProcessingLeadershipLostError, _WorkerTerminationError):
                 # Retain the slot until the old term is revoked and all children are reaped.
                 retain_slot = True
@@ -1191,6 +1248,10 @@ class ArtifactProcessingSupervisors:
     def wake(self, binding_name: str | None = None) -> None:
         for supervisor in self.supervisors:
             supervisor.wake(binding_name)
+
+    async def admit_source_count(self, scope_id: str) -> bool:
+        results = await asyncio.gather(*(item.admit_source_count(scope_id) for item in self.supervisors))
+        return any(results)
 
     async def close(self) -> None:
         await asyncio.gather(*(item.close() for item in self.supervisors))

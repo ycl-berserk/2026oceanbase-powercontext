@@ -143,6 +143,7 @@ from powercontext.builtin.persistence.artifact_governance import (
     ArtifactGovernance,
     ArtifactLifecycleState,
 )
+from powercontext.builtin.persistence.database import AsyncDatabase
 from powercontext.builtin.persistence.skill_publications import SkillPublication
 from powercontext.builtin.publication import ArtifactPublicationApplication
 from powercontext.builtin.records import (
@@ -166,6 +167,7 @@ from powercontext.builtin.runtime._scope_cache import (
     ScopeCacheObserver,
     ScopeEvictor,
 )
+from powercontext.builtin.runtime.context_pack import ContextPack, ContextPackDelta
 from powercontext.builtin.runtime.decision_model import DecisionModel
 from powercontext.builtin.runtime.errors import InvalidRuntimeRequestError, TopicMemoryProcessingUnavailableError
 from powercontext.builtin.runtime.models import (
@@ -248,6 +250,7 @@ from powercontext.builtin.runtime.recall_sufficiency import (
     build_recall_candidates,
     recall_effort,
 )
+from powercontext.builtin.runtime.source_lifecycle import SourceLifecycleApplication
 from powercontext.builtin.runtime.statistics import RelationalScopedStatistics, overview_selection
 from powercontext.builtin.scope import ScopeApplication, ScopeDescriptor, ScopeSelection
 from powercontext.builtin.scope.subject_sources import SubjectSourceService
@@ -488,23 +491,26 @@ class ScopedSourceApplication:
                             span.set_attributes({_MEMORY_CAPTURE_SOURCE_COUNT: 1})
             except BaseValueConflictError as error:
                 raise SourceConflictError("identity", error.identity) from None
-            return SourceReceipt(
+            receipt = SourceReceipt(
                 source_ref=SourceRef(source_type=record.source_type, source_id=record.source_id),
                 sequence=record.position,
             )
-        async with self._runtime._context(self.scope_id) as context:
-            with self._runtime._stage(_MEMORY_CAPTURE_STAGE, attributes={}) as span:
-                source, sequence = await context.sources.capture(
-                    ContentCapture(
-                        source_id=value.source_id,
-                        content=value.content,
-                        metadata=value.model_dump(mode="json")["metadata"],
-                    ),
-                    handoff_receipt=handoff_receipt,
-                )
-                if span is not None:
-                    span.set_attributes({_MEMORY_CAPTURE_SOURCE_COUNT: 1})
-            return SourceReceipt(source_ref=context.sources.catalog.as_ref(source), sequence=sequence)
+        else:
+            async with self._runtime._context(self.scope_id) as context:
+                with self._runtime._stage(_MEMORY_CAPTURE_STAGE, attributes={}) as span:
+                    source, sequence = await context.sources.capture(
+                        ContentCapture(
+                            source_id=value.source_id,
+                            content=value.content,
+                            metadata=value.model_dump(mode="json")["metadata"],
+                        ),
+                        handoff_receipt=handoff_receipt,
+                    )
+                    if span is not None:
+                        span.set_attributes({_MEMORY_CAPTURE_SOURCE_COUNT: 1})
+                receipt = SourceReceipt(source_ref=context.sources.catalog.as_ref(source), sequence=sequence)
+        await self._runtime._admit_source_count(self.scope_id)
+        return receipt
 
 
 class SourceApplication:
@@ -531,11 +537,13 @@ class ScopedRecordApplication:
         /,
     ) -> SourceRecord:
         async with self._runtime._scope_operation(self.scope_id), self._runtime._locked(self.scope_id):
-            return await self._runtime._records().create_source(
+            record = await self._runtime._records().create_source(
                 self.scope_id,
                 source_type,
                 content,
             )
+        await self._runtime._admit_source_count(self.scope_id)
+        return record
 
     async def get_source(self, source_type: str, source_id: str, /) -> SourceRecord:
         async with self._runtime._scope_operation(self.scope_id):
@@ -563,7 +571,11 @@ class ScopedRecordApplication:
         /,
     ) -> ArtifactCreated:
         async with self._runtime._scope_operation(self.scope_id), self._runtime._locked(self.scope_id):
-            return await self._runtime._records().create_artifact(self.scope_id, family, write)
+            created = await self._runtime._records().create_artifact(self.scope_id, family, write)
+        # Artifact lineage adds one server-owned journal identity; counting
+        # Families must see it even though generation evidence excludes it.
+        await self._runtime._admit_source_count(self.scope_id)
+        return created
 
     async def get_artifact(self, family: str, artifact_id: str, /) -> ArtifactRecord:
         async with self._runtime._scope_operation(self.scope_id):
@@ -846,6 +858,22 @@ class ScopedContextApplication:
             if authorize_scopes is not None:
                 await authorize_scopes((self.scope_id, *scope.context_references))
             return await self._prepare(request, scope)
+
+    async def prepare_incremental(
+        self,
+        request: PrepareContextRequest,
+        /,
+        *,
+        base_pack: ContextPack | None = None,
+        authorize_scopes: Callable[[tuple[str, ...]], Awaitable[None]] | None = None,
+    ) -> ContextPack | ContextPackDelta:
+        """Prepare this turn as a full pack or as a delta from the previous pack."""
+
+        prepared = await self.prepare(request, authorize_scopes=authorize_scopes)
+        target = ContextPack.from_content(prepared.content or "")
+        if base_pack is None:
+            return target
+        return ContextPackDelta.between(base_pack, target)
 
     async def _prepare(self, request: PrepareContextRequest, scope: ScopeDescriptor, /) -> PreparedContext:
         build, effort = await self._prepare_build(request, scope)
@@ -2667,6 +2695,19 @@ class ScopedTopicMemoryApplication:
                     query_embedding,
                     embedding_timeout_seconds,
                 )
+        hidden = (
+            await self._runtime.lifecycle.for_scope(self.scope_id).hidden_topic_artifact_ids()
+            if self._runtime.lifecycle.configured
+            else frozenset()
+        )
+        if hidden:
+            result = result.model_copy(
+                update={
+                    "hits": tuple(
+                        hit for hit in result.hits if hit.artifact_ref.artifact_id not in hidden
+                    )
+                }
+            )
         observer = self._runtime._topic_memory_search_observer
         if observer is not None:
             try:
@@ -2985,6 +3026,7 @@ class BuiltinRuntime:
         scope_evictor: ScopeEvictor | None = None,
         scope_cache_observer: ScopeCacheObserver | None = None,
         scope_ids: ScopeIds | None = None,
+        lifecycle_database: AsyncDatabase | None = None,
         review_service: ReviewServiceFactory | None = None,
         profiles: RelationalProfileService | None = None,
         subject_sources: SubjectSourceService | None = None,
@@ -3115,6 +3157,7 @@ class BuiltinRuntime:
         self.review = ReviewApplication(self)
         self.skill = SkillApplication(self)
         self.remote_skills = RemoteSkillApplication(self)
+        self.lifecycle = SourceLifecycleApplication(self, lifecycle_database)
         self.statistics = StatisticsApplication(self)
         self.handoff_report: HandoffReportApplication | None = None
         self.artifact_processing_supervisor: ArtifactProcessingSupervisors | None = None
@@ -3432,6 +3475,18 @@ class BuiltinRuntime:
         if self._record_service is None:
             raise _RuntimeStateError("records")
         return self._record_service
+
+    async def _admit_source_count(self, scope_id: str) -> None:
+        """Offer one committed journal identity to counting Family thresholds.
+
+        Admission is best-effort here; startup reconciliation repeats the same
+        durable decision, so a transient failure never loses the input.
+        """
+
+        supervisors = self.artifact_processing_supervisor
+        if supervisors is None:
+            return
+        await supervisors.admit_source_count(validate_scope_id(scope_id))
 
     def _generation(self, scope_id: str) -> ReviewedGenerationService:
         if self._generation_service is None:

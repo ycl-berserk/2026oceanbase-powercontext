@@ -17,6 +17,9 @@
 from __future__ import annotations
 
 import json
+import math
+import re
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from itertools import chain
@@ -106,6 +109,7 @@ class PreparedContextBuild:
     origins: tuple[PreparedContextOrigin, ...]
     omissions: PreparedContextOmissions = PreparedContextOmissions()
     code_origins: tuple[CodeEvidenceRef, ...] = ()
+    fragments: tuple[PreparedContextFragment, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -115,6 +119,16 @@ class MemoryEntryAddress:
     memory: ArtifactAddress
     entry_id: str
     entry_version_id: str
+
+
+@dataclass(frozen=True)
+class PreparedContextFragment:
+    """One literal slice of an exact Memory entry version."""
+
+    address: MemoryEntryAddress
+    start: int
+    end: int
+    text: str
 
 
 PreparedContextOrigin = MemoryCitation | ArtifactRef | MemoryEntryAddress | ArtifactAddress
@@ -235,14 +249,22 @@ class PreparedContextBuilder:
         if sum(len(candidates.hits) for candidates in experience_candidates) > self.experience_candidate_limit:
             raise PreparedContextInvariantError("experience-candidate-limit")
 
-        content, origins, omissions = self._select_entries(
-            request=request,
-            current_scope_id=current_scope_id,
-            memory_candidates=memory_candidates,
-            experience_candidates=experience_candidates,
-            profile_candidates=profile_candidates,
-            topic_memory_hits=topic_memory_hits,
-        )
+        if request.evidence_selection:
+            content, origins, omissions, fragments = self._select_evidence(
+                request=request,
+                current_scope_id=current_scope_id,
+                memory_candidates=memory_candidates,
+            )
+        else:
+            content, origins, omissions = self._select_entries(
+                request=request,
+                current_scope_id=current_scope_id,
+                memory_candidates=memory_candidates,
+                experience_candidates=experience_candidates,
+                profile_candidates=profile_candidates,
+                topic_memory_hits=topic_memory_hits,
+            )
+            fragments = ()
         if content is None:
             return PreparedContextBuild(context=self.empty(), origins=(), omissions=omissions)
         content_bytes = len(content.encode("utf-8"))
@@ -254,6 +276,7 @@ class PreparedContextBuilder:
             context=PreparedContext(status="ready", content=content, content_bytes=content_bytes),
             origins=origins,
             omissions=omissions,
+            fragments=fragments,
         )
 
     def probe_budget(
@@ -346,6 +369,187 @@ class PreparedContextBuilder:
         if not entries:
             return None, (), omissions
         return _render(entries), tuple(entry.origin for entry in entries), omissions
+
+    def _select_evidence(
+        self,
+        *,
+        request: PrepareContextRequest,
+        current_scope_id: str | None,
+        memory_candidates: Sequence[PreparedMemoryCandidates],
+    ) -> tuple[
+        str | None,
+        tuple[PreparedContextOrigin, ...],
+        PreparedContextOmissions,
+        tuple[PreparedContextFragment, ...],
+    ]:
+        """Pick literal query-relevant spans from Memory entries under the byte budget."""
+
+        entries = _evidence_entries(memory_candidates, current_scope_id)
+        if not entries:
+            return None, (), PreparedContextOmissions(), ()
+        query = _EvidenceQuery(request.query)
+        weights, expanded = query.weights(entries)
+        scored_entries = tuple(
+            replace(
+                entry,
+                units=tuple(
+                    replace(unit, score=query.score(unit, weights, expanded, entry.rank))
+                    for unit in entry.units
+                ),
+            )
+            for entry in entries
+        )
+        units = tuple(unit for entry in scored_entries for unit in entry.units)
+        selected: dict[int, set[int]] = {}
+
+        def merged_runs(entry: _EvidenceEntry, indices: set[int]) -> tuple[tuple[int, int], ...]:
+            runs: list[tuple[int, int]] = []
+            run_start: int | None = None
+            run_end = 0
+            for index in sorted(indices):
+                unit = entry.units[index]
+                if run_start is None:
+                    run_start, run_end = unit.start, unit.end
+                elif unit.start <= run_end + 1:
+                    run_end = max(run_end, unit.end)
+                else:
+                    runs.append(_padded_span(entry.text, run_start, run_end))
+                    run_start, run_end = unit.start, unit.end
+            if run_start is not None:
+                runs.append(_padded_span(entry.text, run_start, run_end))
+            return tuple(runs)
+
+        def rendered_bytes() -> int:
+            size = _EVIDENCE_FIXED_BYTES
+            count = 0
+            for entry_index in sorted(selected):
+                entry = scored_entries[entry_index]
+                for start, end in merged_runs(entry, selected[entry_index]):
+                    size += _evidence_item_bytes(entry, start, end)
+                    count += 1
+            return size + max(0, count - 1)
+
+        def add(entry_index: int, unit_index: int) -> bool:
+            bucket = selected.setdefault(entry_index, set())
+            if unit_index in bucket:
+                return False
+            bucket.add(unit_index)
+            if rendered_bytes() <= request.max_bytes:
+                return True
+            bucket.remove(unit_index)
+            if not bucket:
+                selected.pop(entry_index, None)
+            return False
+
+        best_score = max(unit.score for unit in units)
+        entry_best = {
+            entry_index: max(unit.score for unit in scored_entries[entry_index].units)
+            for entry_index in range(len(scored_entries))
+        }
+
+        def priority(unit: _EvidenceUnit, floor: float) -> float:
+            if unit.score < floor:
+                return -1.0
+            entry = scored_entries[unit.entry_index]
+            size = max(_evidence_item_bytes(entry, unit.start, unit.end), 220)
+            return unit.score / math.sqrt(size)
+
+        def ranked(floor: float) -> tuple[_EvidenceUnit, ...]:
+            candidates = [unit for unit in units if unit.score >= floor]
+            return tuple(
+                sorted(
+                    candidates,
+                    key=lambda unit: (
+                        -priority(unit, floor),
+                        scored_entries[unit.entry_index].rank,
+                        unit.start,
+                    ),
+                )
+            )
+
+        def best_unit(entry: _EvidenceEntry) -> _EvidenceUnit:
+            return min(
+                entry.units,
+                key=lambda unit: (
+                    -unit.score,
+                    _evidence_item_bytes(entry, unit.start, unit.end),
+                    unit.index,
+                ),
+            )
+
+        # One strong sentence per promising document first, so a single verbose
+        # document cannot spend the whole budget before candidates from other
+        # documents are considered.
+        strong = sorted(
+            (entry for entry in scored_entries if entry_best[entry.rank] >= 0.5 * best_score),
+            key=lambda entry: (
+                -entry_best[entry.rank]
+                / math.sqrt(
+                    _evidence_item_bytes(entry, best_unit(entry).start, best_unit(entry).end) + 1
+                ),
+                entry.rank,
+            ),
+        )
+        for entry in strong:
+            unit = best_unit(entry)
+            add(entry.rank, unit.index)
+
+        for unit in ranked(0.3 * best_score):
+            add(unit.entry_index, unit.index)
+
+        for _ in range(3):
+            expanded_any = False
+            for entry_index, indices in tuple((index, tuple(bucket)) for index, bucket in selected.items()):
+                entry = scored_entries[entry_index]
+                for unit_index in sorted(indices, key=lambda value: -entry.units[value].score):
+                    for neighbour in (unit_index - 1, unit_index + 1):
+                        if 0 <= neighbour < len(entry.units) and add(entry_index, neighbour):
+                            expanded_any = True
+            for entry_index, indices in tuple((index, tuple(bucket)) for index, bucket in selected.items()):
+                ordered_indices = sorted(indices)
+                for left, right in zip(ordered_indices, ordered_indices[1:]):
+                    if 1 < right - left <= 4:
+                        for gap in range(left + 1, right):
+                            if add(entry_index, gap):
+                                expanded_any = True
+            for entry in strong:
+                for unit in sorted(entry.units, key=lambda candidate: -candidate.score):
+                    if add(entry.rank, unit.index):
+                        expanded_any = True
+            for unit in ranked(0.18 * best_score):
+                if add(unit.entry_index, unit.index):
+                    expanded_any = True
+            if not expanded_any:
+                break
+
+        fragments: list[PreparedContextFragment] = []
+        for entry_index in sorted(selected):
+            entry = scored_entries[entry_index]
+            for start, end in merged_runs(entry, selected[entry_index]):
+                fragments.append(
+                    PreparedContextFragment(
+                        address=entry.address,
+                        start=start,
+                        end=end,
+                        text=entry.text[start:end],
+                    )
+                )
+        if not fragments:
+            return None, (), PreparedContextOmissions(dropped_items=len(units)), ()
+        content = _render_evidence(fragments)
+        while fragments and len(content.encode("utf-8")) > request.max_bytes:
+            fragments.pop()
+            content = _render_evidence(fragments)
+        if not fragments:
+            return None, (), PreparedContextOmissions(dropped_items=len(units)), ()
+        selected_units = sum(len(bucket) for bucket in selected.values())
+        omissions = PreparedContextOmissions(dropped_items=max(0, len(units) - selected_units))
+        return (
+            content,
+            tuple(fragment.address for fragment in fragments),
+            omissions,
+            tuple(fragments),
+        )
 
     def _select_text(
         self,
@@ -728,3 +932,367 @@ def _truncate_utf8(text: str, byte_budget: int) -> str:
     prefix_budget = byte_budget - len(_ELLIPSIS.encode("utf-8"))
     encoded_prefix = text.encode("utf-8")[:prefix_budget]
     return f"{encoded_prefix.decode('utf-8', errors='ignore')}{_ELLIPSIS}"
+
+
+_EVIDENCE_TOKEN_PATTERN = re.compile(r"[a-z]+|\d+")
+_EVIDENCE_ABBREVIATIONS = frozenset(
+    """
+    e.g i.e al vs fig figs eq eqs no nos approx ca cf ref refs dr mr ms mrs st inc ltd co corp
+    sec min max resp suppl vol pp ed eds u.s u.k e.u dept univ prof sr jr
+    """.split()
+)
+_EVIDENCE_EXPANSIONS: dict[str, tuple[str, ...]] = {
+    "show": ("demonstrat", "indicat", "suggest", "observ", "report", "found", "reveal"),
+    "increas": ("enhanc", "elevat", "rais", "higher", "upregul", "augment"),
+    "decreas": ("reduc", "lower", "inhibit", "downregul", "diminish"),
+    "improv": ("enhanc", "benefit", "better"),
+    "caus": ("induc", "lead", "trigger", "driv"),
+    "use": ("utiliz", "applic", "employ", "us"),
+    "treat": ("therap", "treatment"),
+    "prevent": ("prophylax", "protect"),
+    "effect": ("impact", "influenc", "associat"),
+    "risk": ("associat", "likelihood", "susceptib"),
+    "patient": ("subject", "individual", "participant"),
+    "cancer": ("tumor", "tumour", "carcinoma", "malignan"),
+    "gene": ("mutat", "variant", "allel"),
+}
+
+
+def _evidence_stem(term: str) -> str:
+    if len(term) <= 3 or term.isdigit():
+        return term
+    if term.endswith("ies") and len(term) > 4:
+        term = term[:-3] + "y"
+    elif term.endswith(("sses", "shes", "ches", "xes")):
+        term = term[:-2]
+    elif term.endswith("s") and not term.endswith(("ss", "us", "is")):
+        term = term[:-1]
+    if term.endswith("ing") and len(term) > 5:
+        term = term[:-3]
+    elif term.endswith("ed") and len(term) > 4:
+        term = term[:-2]
+    if term.endswith("e") and len(term) > 4:
+        term = term[:-1]
+    return term
+
+
+_EVIDENCE_STOPWORDS = frozenset(
+    _evidence_stem(word)
+    for word in """
+    a an and are as at be been being but by can could did do does for from had has have how if in
+    into is it its may might must no nor not of on only or other our out over own same should so
+    some such than that the their them then there these they this those through to too under until
+    up very was we were what when where which while who why will with would you your us use used
+    using study studies result results conclusion conclusions background objective methods method
+    purpose here also more most less least much many any all both each another between among
+    during after before about against because however therefore thus i he she his her him they
+    them their we our
+    """.split()
+)
+
+
+def _evidence_tokens(text: str) -> tuple[str, ...]:
+    return tuple(
+        term
+        for raw in _EVIDENCE_TOKEN_PATTERN.findall(text.lower())
+        if (term := _evidence_stem(raw)) not in _EVIDENCE_STOPWORDS
+    )
+
+
+def _trim_span(text: str, start: int, end: int) -> tuple[int, int] | None:
+    while start < end and text[start].isspace():
+        start += 1
+    while end > start and text[end - 1].isspace():
+        end -= 1
+    return (start, end) if start < end else None
+
+
+def _word_before(text: str, index: int) -> str:
+    position = index - 1
+    while position >= 0 and (text[position].isalnum() or text[position] == "."):
+        position -= 1
+    return text[position + 1 : index].lower()
+
+
+def _is_abbreviation(word: str) -> bool:
+    return word in _EVIDENCE_ABBREVIATIONS or (len(word) == 1 and word.isalpha())
+
+
+def _sentence_spans(text: str) -> tuple[tuple[int, int], ...]:
+    spans: list[tuple[int, int]] = []
+    start = 0
+    index = 0
+    length = len(text)
+    while index < length:
+        if text[index] in ".!?":
+            end = index + 1
+            while end < length and text[end] in "\"')]}":
+                end += 1
+            if end >= length or text[end].isspace():
+                following = end
+                while following < length and text[following].isspace():
+                    following += 1
+                boundary = (
+                    following >= length
+                    or text[following].isalpha()
+                    or text[following].isdigit()
+                    or text[following] in "([\"'"
+                )
+                if boundary and not _is_abbreviation(_word_before(text, index)):
+                    span = _trim_span(text, start, end)
+                    if span is not None:
+                        spans.append(span)
+                    start = following
+                    index = following
+                    continue
+        index += 1
+    span = _trim_span(text, start, length)
+    if span is not None:
+        spans.append(span)
+    return tuple(spans)
+
+
+def _partial_match(term: str, counts: Counter[str]) -> bool:
+    if len(term) < 5:
+        return False
+    if len(term) >= 6:
+        return any(term in token or (len(token) >= 6 and token in term) for token in counts)
+    return any(token.startswith(term) or term.startswith(token) for token in counts)
+
+
+_EVIDENCE_HEADING_PENALTIES = (
+    "background",
+    "objective",
+    "purpose",
+    "method",
+    "methods",
+    "design",
+    "setting",
+    "participants",
+    "intervention",
+    "exposure",
+    "main outcome",
+    "data source",
+    "study selection",
+    "eligibility",
+    "inclusion criteria",
+    "funding",
+    "conflict of interest",
+    "author",
+    "affiliation",
+    "keywords",
+    "abbreviations",
+    "introduction",
+)
+_EVIDENCE_HEADING_BOOSTS = ("results", "findings", "conclusion", "conclusions", "interpretation")
+_EVIDENCE_CUES = (
+    "demonstrat", "indicat", "suggest", "conclud", "found", "show", "reveal",
+    "taken together", "in summary", "these data", "our results", "we report",
+)
+
+
+def _evidence_cue_factor(text: str) -> float:
+    lowered = text.lower()
+    return 1.2 if any(cue in lowered for cue in _EVIDENCE_CUES) else 1.0
+
+
+def _evidence_heading_factor(text: str) -> float:
+    head = text.lstrip()[:40].lower()
+    for heading in _EVIDENCE_HEADING_BOOSTS:
+        if head.startswith(heading):
+            return 1.2
+    for heading in _EVIDENCE_HEADING_PENALTIES:
+        if head.startswith(heading):
+            return 0.55
+    return 1.0
+
+
+@dataclass(frozen=True)
+class _EvidenceUnit:
+    entry_index: int
+    index: int
+    start: int
+    end: int
+    text: str
+    tokens: tuple[str, ...]
+    score: float = 0.0
+
+
+@dataclass(frozen=True)
+class _EvidenceEntry:
+    address: MemoryEntryAddress
+    citation: dict[str, object]
+    text: str
+    rank: int
+    units: tuple[_EvidenceUnit, ...]
+
+
+class _EvidenceQuery:
+    def __init__(self, query: str) -> None:
+        tokens = _evidence_tokens(query)
+        self.counts = Counter(tokens)
+        self.bigrams = tuple(pair for pair in zip(tokens, tokens[1:]) if pair[0] != pair[1])
+        self.numbers = frozenset(term for term in tokens if term.isdigit())
+
+    def weights(self, entries: Sequence[_EvidenceEntry]) -> tuple[dict[str, float], dict[str, float]]:
+        document_frequency: Counter[str] = Counter()
+        units = [unit for entry in entries for unit in entry.units]
+        for unit in units:
+            document_frequency.update(set(unit.tokens))
+        total = len(units)
+        weights: dict[str, float] = {}
+        for term, count in self.counts.items():
+            inverse = math.log((1.0 + total) / (1.0 + document_frequency.get(term, 0))) + 1.0
+            weights[term] = inverse * (1.0 + math.log(count))
+        expanded: dict[str, float] = {}
+        for term, weight in weights.items():
+            for alternative in _EVIDENCE_EXPANSIONS.get(term, ()):
+                if alternative not in self.counts:
+                    expanded[alternative] = max(expanded.get(alternative, 0.0), weight * 0.55)
+        return weights, expanded
+
+    def score(
+        self,
+        unit: _EvidenceUnit,
+        weights: dict[str, float],
+        expanded: dict[str, float],
+        rank: int,
+    ) -> float:
+        counts = Counter(unit.tokens)
+        score = 0.0
+        matched = 0.0
+        for term, weight in weights.items():
+            frequency = counts.get(term, 0)
+            if frequency:
+                score += weight * min(frequency, 2)
+                matched += 1.0
+            elif _partial_match(term, counts):
+                score += weight * 0.45
+                matched += 0.5
+        for term, weight in expanded.items():
+            frequency = counts.get(term, 0)
+            if frequency:
+                score += weight * min(frequency, 2)
+            elif _partial_match(term, counts):
+                score += weight * 0.3
+        if weights:
+            coverage = matched / len(weights)
+            score += 2.2 * coverage + 0.8 * coverage * coverage
+        unit_bigrams = set(zip(unit.tokens, unit.tokens[1:]))
+        for pair in self.bigrams:
+            if pair in unit_bigrams:
+                score += 1.6
+        for number in self.numbers:
+            if number in counts:
+                score += 2.5
+        if unit.index == 0:
+            score *= 0.25
+        score *= _evidence_heading_factor(unit.text) * _evidence_cue_factor(unit.text)
+        return score + 0.5 / (1.0 + rank)
+
+
+def _evidence_entries(
+    candidates: Sequence[PreparedMemoryCandidates],
+    current_scope_id: str | None,
+) -> tuple[_EvidenceEntry, ...]:
+    entries: list[_EvidenceEntry] = []
+    seen: set[tuple[str, str, str]] = set()
+    for group in candidates:
+        if group.hits and group.memory_ref is None:
+            raise PreparedContextInvariantError("memory-ref-missing")
+        scope_id = group.scope_id or current_scope_id or ""
+        for hit in group.hits:
+            if hit.memory_ref != group.memory_ref:
+                raise PreparedContextInvariantError("memory-ref-mismatch")
+            identity = (scope_id, hit.entry_id, hit.entry_version_id)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            if not hit.entry_id.strip() or not hit.entry_version_id.strip() or not hit.text.strip():
+                continue
+            address = MemoryEntryAddress(
+                memory=ArtifactAddress(scope_id=scope_id, artifact=hit.memory_ref),
+                entry_id=hit.entry_id,
+                entry_version_id=hit.entry_version_id,
+            )
+            units: list[_EvidenceUnit] = []
+            for start, end in _sentence_spans(hit.text):
+                text = hit.text[start:end]
+                units.append(
+                    _EvidenceUnit(
+                        entry_index=len(entries),
+                        index=len(units),
+                        start=start,
+                        end=end,
+                        text=text,
+                        tokens=_evidence_tokens(text),
+                    )
+                )
+            if not units:
+                continue
+            entries.append(
+                _EvidenceEntry(
+                    address=address,
+                    citation={
+                        "scope_id": scope_id,
+                        "memory_ref": hit.memory_ref.model_dump(mode="json"),
+                        "entry_id": hit.entry_id,
+                        "entry_version_id": hit.entry_version_id,
+                    },
+                    text=hit.text,
+                    rank=len(entries),
+                    units=tuple(units),
+                )
+            )
+    return tuple(entries)
+
+
+def _padded_span(text: str, start: int, end: int) -> tuple[int, int]:
+    while start > 0 and text[start - 1].isspace():
+        start -= 1
+    while end < len(text) and text[end].isspace():
+        end += 1
+    return start, end
+
+
+def _evidence_item(
+    citation: dict[str, object],
+    content: str,
+    start: int,
+    end: int,
+) -> dict[str, object]:
+    return {"citation": citation, "content": content, "start": start, "end": end}
+
+
+def _evidence_item_bytes(entry: _EvidenceEntry, start: int, end: int) -> int:
+    item = _evidence_item(entry.citation, entry.text[start:end], start, end)
+    return len(json.dumps(item, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+
+_EVIDENCE_EMPTY_JSON = json.dumps({"trust": "untrusted_history", "items": []}, ensure_ascii=False, separators=(",", ":"))
+_EVIDENCE_FIXED_BYTES = len(
+    "\n\n".join((TRUST_POLICY, f"{_BEGIN_MARKER}\n{_EVIDENCE_EMPTY_JSON}\n{_END_MARKER}")).encode("utf-8")
+)
+
+
+def _render_evidence(fragments: Sequence[PreparedContextFragment]) -> str:
+    items = [
+        _evidence_item(
+            {
+                "scope_id": fragment.address.memory.scope_id,
+                "memory_ref": fragment.address.memory.artifact.model_dump(mode="json"),
+                "entry_id": fragment.address.entry_id,
+                "entry_version_id": fragment.address.entry_version_id,
+            },
+            fragment.text,
+            fragment.start,
+            fragment.end,
+        )
+        for fragment in fragments
+    ]
+    encoded = json.dumps(
+        {"trust": "untrusted_history", "items": items},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return "\n\n".join((TRUST_POLICY, f"{_BEGIN_MARKER}\n{encoded}\n{_END_MARKER}"))
