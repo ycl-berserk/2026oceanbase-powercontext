@@ -19,6 +19,14 @@ from reviewmate.service import ReviewMateService  # noqa: E402
 QUESTION = "LRU 和 FIFO 有什么区别？为什么 FIFO 会出现 Belady 异常？"
 
 
+def _display_path(path: str | Path) -> str:
+    resolved = Path(path).resolve()
+    try:
+        return str(resolved.relative_to(ROOT))
+    except ValueError:
+        return str(resolved)
+
+
 class Checks:
     def __init__(self) -> None:
         self.rows: list[dict[str, Any]] = []
@@ -48,7 +56,7 @@ def main() -> int:
     report: dict[str, Any] = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "session_id": session_id,
-        "db_path": str(settings.db_path),
+        "db_path": _display_path(settings.db_path),
         "powercontext_url": settings.powercontext_url,
         "checks": checks.rows,
         "evidence": {},
@@ -59,7 +67,7 @@ def main() -> int:
         checks.check(
             "环境就绪",
             health["status"] == "ok" and health["seekdb"]["ready"],
-            f"seekdb={health['seekdb']['db_path']}，PowerContext={settings.powercontext_url}",
+            f"seekdb={_display_path(health['seekdb']['db_path'])}，PowerContext={settings.powercontext_url}",
         )
     except Exception as exc:  # noqa: BLE001 - 验收脚本需要给出可读失败信息
         checks.check("环境就绪", False, f"初始化失败：{exc}")

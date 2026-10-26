@@ -20,8 +20,8 @@
 - [x] 已通过 Qoder CLI 创建站点（无需桌面端）。
 - [x] 可见范围已设为「任何人都可访问」。
 - [x] 已发布：<https://reviewmate-5967u15pefr.qoder.zone>
-- [x] 无痕方式复核：首页 200、样式与 4 张图片正常、无登录墙、无横向溢出。
-- [ ] 代码仓库地址确定后，更新站点内 `CODE_REPO_URL` 占位并重新发布。
+- [x] 无痕方式复核：首页 200、样式与图片正常、无登录墙、无横向溢出。
+- [x] 已把站点内仓库占位替换为实际仓库链接，并重新发布、复核线上 HTML。
 - [ ] 评审结束前不暂停或删除站点。
 
 站点信息：
@@ -31,7 +31,8 @@
 | 公网地址 | `https://reviewmate-5967u15pefr.qoder.zone` |
 | Site ID | `01a177da-3a47-76a5-b329-4e4001edd05e` |
 | Project ID | `01a177da-3a44-7a5a-bd29-9b309d86f16d` |
-| 发布 action | `4bc0ca6a-2552-466d-a410-d66a24168e74` |
+| 当前发布 action | `e5c7e3d7-b1c8-491e-be85-d93a563182b5` |
+| 当前 Deployment | `01a177e4-9e0f-7eec-a4e9-f0f248e8da78` |
 | 公开访问截图 | `data/screenshots/site-public.png` |
 
 ## 三、代码仓库
@@ -60,20 +61,20 @@ git ls-files | grep -Ei '\.env$|secret|credential|\.key$|\.pem$'
 
 ## 五、安全与合规
 
-- [ ] `.env.example` 只含占位值；没有真实 API Key、密码、Token、数据库凭据。
-- [ ] 样例数据为自编笔记，CC BY 4.0；第三方开源代码与模型已注明来源与许可。
-- [ ] 截图、日志、反馈中隐去姓名、学号、联系方式。
-- [ ] 项目网站与仓库均不含 `.env`、本地数据库、Chrome profile。
+- [x] `.env.example` 只含占位值；没有真实 API Key、密码、Token、数据库凭据。
+- [x] 样例数据为自编笔记，CC BY 4.0；第三方开源代码与模型已注明来源与许可。
+- [ ] 截图、日志、反馈中隐去姓名、学号、联系方式（Qoder 截图导出时复核；验收报告已改为相对路径）。
+- [x] 项目网站与仓库均不含 `.env`、本地数据库、Chrome profile。
 
 ## 六、最终复核
 
-- [ ] `make test` 通过。
-- [ ] `make lint` 通过。
-- [ ] `make verify` 12/12 通过，报告已更新。
-- [ ] 从零按 README 启动一遍：PowerContext → ingest → serve。
-- [ ] 无痕窗口打开站点，检查图片、链接、代码仓库入口。
+- [x] `make test` 通过：10 通过 / 1 跳过（集成测试需显式开启）。
+- [x] `make lint` 通过：ruff 无告警。
+- [x] `make verify` 12/12 通过，报告已更新。
+- [x] 按 README 启动链路已跑通：PowerContext → ingest → serve。
+- [x] 无痕方式复核线上站点：首页、样式、图片 200，仓库入口已上线。
 - [ ] 提交平台填写：站点网址、仓库地址、Qoder UID，并上传其余材料。
-- [ ] 记录提交时间与版本 commit，保留一份本地材料快照。
+- [x] 记录版本 commit：项目内容 `d0f8ed2f`，文档回填 `449b6853`；本地材料保留在 `qoder/reviewmate/`。
 
 ## 七、提交信息模板
 

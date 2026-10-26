@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-10-26T18:31:39",
-  "session_id": "verify-20261026-183139",
-  "db_path": "/home/ycl_berserk/qoder-reviewmate/data/seekdb/reviewmate.db",
+  "generated_at": "2026-10-26T19:12:16",
+  "session_id": "verify-20261026-191216",
+  "db_path": "data/seekdb/reviewmate.db",
   "powercontext_url": "http://127.0.0.1:8100",
   "checks": [
     {
       "check": "环境就绪",
       "ok": true,
-      "detail": "seekdb=/home/ycl_berserk/qoder-reviewmate/data/seekdb/reviewmate.db，PowerContext=http://127.0.0.1:8100"
+      "detail": "seekdb=data/seekdb/reviewmate.db，PowerContext=http://127.0.0.1:8100"
     },
     {
       "check": "PowerContext 健康检查",
@@ -22,7 +22,7 @@
     {
       "check": "PowerContext scope 建立",
       "ok": true,
-      "detail": "scope=scp_17zvk8r1wprjnnccxw8c0bn3vf"
+      "detail": "scope=scp_2er4ssa59ez2dfanbypxv4ybvv"
     },
     {
       "check": "混合检索命中两路",
@@ -42,7 +42,7 @@
     {
       "check": "自动记录提问",
       "ok": true,
-      "detail": "entry=mem_ent_52200ba8c1bf41f3af61c2d6eea40ed5"
+      "detail": "entry=mem_ent_83b04fd16bd1418486bc9fee9503cf0c"
     },
     {
       "check": "薄弱点写入并保留",
@@ -62,14 +62,14 @@
     {
       "check": "QA 日志可追溯",
       "ok": true,
-      "detail": "本会话 2 条问答记录，最新 qa_id=qa_c4fc28dc42fb4adb"
+      "detail": "本会话 2 条问答记录，最新 qa_id=qa_bf55a4da391740d9"
     }
   ],
   "evidence": {
     "seekdb_stats": {
       "documents": 4,
       "chunks": 20,
-      "asks": 18,
+      "asks": 22,
       "courses": [
         {
           "course": "操作系统",
@@ -93,9 +93,9 @@
         }
       ]
     },
-    "scope_id": "scp_17zvk8r1wprjnnccxw8c0bn3vf",
+    "scope_id": "scp_2er4ssa59ez2dfanbypxv4ybvv",
     "ask": {
-      "qa_id": "qa_c4fc28dc42fb4adb",
+      "qa_id": "qa_d883efa5aa62440e",
       "answer_mode": "extractive",
       "retrieval": {
         "channels": {
@@ -164,18 +164,18 @@
     },
     "memory_entries": [
       {
-        "entry_id": "mem_ent_52200ba8c1bf41f3af61c2d6eea40ed5",
-        "text": "操作系统｜提问：LRU 和 FIFO 有什么区别？为什么 FIFO 会出现 Belady 异常？；参考：虚拟内存与页面置换",
-        "kind": "study-progress",
+        "entry_id": "mem_ent_0fba9bf1fa464b43a9039a0179f2382e",
+        "text": "薄弱点：虚拟内存与页面置换 · LRU 与 FIFO 的对比。补充说明：FIFO 的 Belady 异常与 LRU 近似实现",
+        "kind": "weak-point",
         "score": 1.0,
         "matched_by": [
           "list"
         ]
       },
       {
-        "entry_id": "mem_ent_76a13bcbe523455a89223dbe38e07cb5",
-        "text": "薄弱点：虚拟内存与页面置换 · LRU 与 FIFO 的对比。补充说明：FIFO 的 Belady 异常与 LRU 近似实现",
-        "kind": "weak-point",
+        "entry_id": "mem_ent_83b04fd16bd1418486bc9fee9503cf0c",
+        "text": "操作系统｜提问：LRU 和 FIFO 有什么区别？为什么 FIFO 会出现 Belady 异常？；参考：虚拟内存与页面置换",
+        "kind": "study-progress",
         "score": 1.0,
         "matched_by": [
           "list"
