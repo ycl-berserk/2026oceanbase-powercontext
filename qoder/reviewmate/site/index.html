@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>温故 ReviewMate · 会记得你的课程复习教练</title>
+    <meta
+      name="description"
+      content="ReviewMate 用 seekdb 做课程笔记的全文与向量混合检索，用 PowerContext 记住提问进度与薄弱点，让复习接着上次继续。"
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top">
+        <span class="seal">温故</span>
+        <span class="brand-text">
+          <strong>ReviewMate</strong>
+          <small>会记得你的课程笔记复习助手</small>
+        </span>
+      </a>
+      <nav class="nav">
+        <a href="#problem">问题</a>
+        <a href="#demo">演示</a>
+        <a href="#tech">技术</a>
+        <a href="#verify">验证</a>
+        <a href="#run">运行</a>
+      </nav>
+      <a class="nav-cta" href="#repo">代码仓库</a>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">OCEANBASE 2026 · QODER 生态赛道</p>
+          <h1>把散落的笔记，<br />变成<em>会记得你</em>的<span class="nowrap">复习教练。</span></h1>
+          <p class="lede">
+            ReviewMate 把课程笔记导入 seekdb，用全文 + 向量的混合检索找回原文；
+            PowerContext 记住你的每一次提问与薄弱点，下一次复习从上次停下的地方继续。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#demo">看一次真实问答</a>
+            <a class="button ghost" href="#run">按步骤跑起来</a>
+          </div>
+          <ul class="chips" aria-label="项目特性">
+            <li>seekdb 混合检索</li>
+            <li>PowerContext 学习记忆</li>
+            <li>本地优先</li>
+            <li>引用回到原页</li>
+          </ul>
+        </div>
+        <figure class="hero-shot">
+          <div class="shot-bar"><span></span><span></span><span></span><i>ReviewMate · 127.0.0.1:8090</i></div>
+          <img src="assets/home.png" alt="ReviewMate 首页：左侧是学习会话与知识库，右侧是提问区" />
+        </figure>
+      </section>
+
+      <section id="problem" class="section problem">
+        <div class="section-head">
+          <p class="eyebrow">THE PROBLEM</p>
+          <h2>复习最耗时的，不是学，是找。</h2>
+          <p>
+            笔记散落在多门课、多个文件里；搜到一句话，却不知道来自哪一页；
+            上次标记的薄弱点，换一个工具就丢了。
+          </p>
+        </div>
+        <div class="problem-grid">
+          <article>
+            <span class="numeral">01</span>
+            <h3>想不起关键词</h3>
+            <p>只记得“那个换页算法”，纯关键词检索却什么也搜不到。</p>
+          </article>
+          <article>
+            <span class="numeral">02</span>
+            <h3>答案没有出处</h3>
+            <p>大模型答得流畅，却无法回到笔记原文核对，复习不敢信。</p>
+          </article>
+          <article>
+            <span class="numeral">03</span>
+            <h3>每次从头开始</h3>
+            <p>薄弱点、进度、上次问过什么，散在聊天记录和脑子里。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="demo" class="section demo">
+        <div class="section-head narrow">
+          <p class="eyebrow">THE LOOP</p>
+          <h2>一次提问，串起检索与记忆。</h2>
+          <p>
+            问“LRU 和 FIFO 有什么区别”，答案回到操作系统笔记第 4 页；
+            标记薄弱点后，复习计划把它排到第一步。
+          </p>
+        </div>
+        <div class="demo-grid">
+          <figure class="demo-main">
+            <img src="assets/answer.png" alt="回答页面：引用《虚拟内存与页面置换》第 4 页，并展示全文与向量排名" />
+            <figcaption>回答带页码、原文和两路检索排名；未直接使用的候选折叠可查。</figcaption>
+          </figure>
+          <figure class="demo-plan">
+            <img src="assets/plan.png" alt="复习计划页面：取用 1 条薄弱点，覆盖 4 篇笔记" />
+            <figcaption>复习计划读取 PowerContext 中的薄弱点。</figcaption>
+          </figure>
+          <figure class="phone">
+            <img src="assets/mobile.png" alt="ReviewMate 移动端布局" />
+            <figcaption>移动端同样完整。</figcaption>
+          </figure>
+        </div>
+        <ol class="loop">
+          <li><b>问</b><span>自然语言提问，可限定课程。</span></li>
+          <li><b>找</b><span>seekdb 一条 SQL 融合全文与向量召回。</span></li>
+          <li><b>核</b><span>每个引用带标题、章节、页码与原文。</span></li>
+          <li><b>记</b><span>PowerContext 自动记录进度，薄弱点可手动标记。</span></li>
+          <li><b>复</b><span>下一次提问与复习计划继续使用这些记忆。</span></li>
+        </ol>
+      </section>
+
+      <section id="tech" class="section tech">
+        <div class="section-head narrow">
+          <p class="eyebrow">UNDER THE HOOD</p>
+          <h2>两种技术，各做一件不可替代的事。</h2>
+        </div>
+        <div class="tech-grid">
+          <article class="tech-card seekdb">
+            <header>
+              <span class="tech-label">SEEKDB</span>
+              <h3>负责找到原文</h3>
+            </header>
+            <ul>
+              <li>单表存储正文、元数据与 512 维向量</li>
+              <li>一条 <code>UNION ALL</code> SQL 同时跑 NGRAM 全文与 HNSW 向量</li>
+              <li>课程过滤在数据库层完成，再在 Python 侧做 RRF 融合</li>
+              <li>QA 日志记录问题、证据片段、回答模式与耗时</li>
+            </ul>
+            <pre><code>MATCH(content) AGAINST(?)
+UNION ALL
+ORDER BY l2_distance(embedding, ?) APPROXIMATE</code></pre>
+          </article>
+          <article class="tech-card powercontext">
+            <header>
+              <span class="tech-label">POWERCONTEXT</span>
+              <h3>负责记住你</h3>
+            </header>
+            <ul>
+              <li>每个学习会话一个独立 scope，记忆互不污染</li>
+              <li>提问自动写入学习进度，薄弱点一键写入</li>
+              <li>后续提问先检索历史记忆，再注入回答上下文</li>
+              <li>复习计划直接读取薄弱点，与文档清单交叉编排</li>
+            </ul>
+            <pre><code>scope → memory/remember → memory/search
+      → memory/entries/list</code></pre>
+          </article>
+        </div>
+        <div class="architecture">
+          <div class="arch-node">浏览器<small>原生 HTML / CSS / JS</small></div>
+          <span class="arrow">→</span>
+          <div class="arch-node strong">FastAPI<small>提问 / 记忆 / 计划 API</small></div>
+          <span class="arrow">→</span>
+          <div class="arch-flow">
+            <div class="arch-node seekdb">seekdb<small>文档 · 向量 · 日志</small></div>
+            <div class="arch-node powercontext">PowerContext<small>scope · 进度 · 薄弱点</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="verify" class="section verify">
+        <div class="verify-panel">
+          <div class="verify-copy">
+            <p class="eyebrow">REPRODUCIBLE</p>
+            <h2>不是演示，是一组能跑通的检查。</h2>
+            <p>
+              <code>make verify</code> 依次核对两路检索、引用页码、记忆写入与复用、
+              复习计划和 QA 日志，生成机器可读报告。
+            </p>
+            <a class="button primary" href="#run">运行同一组样例</a>
+          </div>
+          <div class="terminal" aria-label="验收脚本输出">
+            <div class="terminal-bar"><span></span><span></span><span></span><i>make verify</i></div>
+            <pre><code><span class="ok">[PASS]</span> 混合检索命中两路: 全文 3 条，向量 5 条
+<span class="ok">[PASS]</span> 引用可回到原文: 第 4 页 · LRU 与 FIFO 的对比
+<span class="ok">[PASS]</span> 自动记录提问
+<span class="ok">[PASS]</span> 后续提问复用记忆: 命中 2 条历史记忆
+<span class="ok">[PASS]</span> 复习计划读取薄弱点: 1 条薄弱点
+<span class="ok">[PASS]</span> QA 日志可追溯
+<span class="dim">结果：12 通过 / 0 失败</span></code></pre>
+          </div>
+        </div>
+        <div class="stats">
+          <div><b>4</b><span>样例课程笔记</span></div>
+          <div><b>20</b><span>可检索片段</span></div>
+          <div><b>2</b><span>检索通道 · 全文 / 向量</span></div>
+          <div><b>12</b><span>自动验收项</span></div>
+        </div>
+      </section>
+
+      <section id="run" class="section run">
+        <div class="section-head narrow">
+          <p class="eyebrow">RUN IT YOURSELF</p>
+          <h2>三步，从零到一次带记忆的问答。</h2>
+          <p>需要 Linux / WSL、Python 3.11+。首次运行需联网下载中文 embedding 模型，之后可离线。</p>
+        </div>
+        <div class="run-grid">
+          <article>
+            <span class="step">01</span>
+            <h3>安装与启动记忆服务</h3>
+            <pre><code>python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+cp .env.example .env
+
+# 终端 A
+make powercontext</code></pre>
+          </article>
+          <article>
+            <span class="step">02</span>
+            <h3>导入笔记并启动界面</h3>
+            <pre><code># 终端 B
+make ingest
+make serve
+
+# 打开 http://127.0.0.1:8090</code></pre>
+          </article>
+          <article>
+            <span class="step">03</span>
+            <h3>跑同一组验收</h3>
+            <pre><code>make verify
+make test
+make lint</code></pre>
+          </article>
+        </div>
+        <p class="note">
+          没有大模型 Key 也能完整运行：默认使用本地摘录回答，引用与原文定位不受影响。
+          配置 <code>DEEPSEEK_API_KEY</code> 后自动切换为生成的回答。
+        </p>
+      </section>
+
+      <section id="repo" class="section repo">
+        <div class="repo-card">
+          <div>
+            <p class="eyebrow">SOURCE &amp; VERIFICATION</p>
+            <h2>代码、样例与验证脚本都在仓库里。</h2>
+            <p>
+              项目源码、4 篇样例笔记、12 项验收脚本、架构说明与 Qoder 开发记录一并提交。
+              配置示例只含占位值，不包含真实凭据。
+            </p>
+          </div>
+          <div class="repo-actions">
+            <a class="button primary" href="https://github.com/ycl-berserk/2026oceanbase-powercontext/tree/qoder-reviewmate/qoder/reviewmate" target="_blank" rel="noopener">查看代码仓库</a>
+            <span class="placeholder">私有仓库 · 分支 <code>qoder-reviewmate</code> · 评审需授权</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>温故 ReviewMate · OceanBase 2026 数据库大赛 Qoder 生态赛道</span>
+      <span>seekdb 嵌入式 · PowerContext 1.2 · FastAPI</span>
+    </footer>
+  </body>
+</html>

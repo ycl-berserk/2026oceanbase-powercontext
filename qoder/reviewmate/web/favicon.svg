@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#1c2b29"/>
+  <rect x="7" y="7" width="50" height="50" rx="9" fill="none" stroke="#f7f0e1" stroke-width="2" opacity=".55"/>
+  <g fill="#f7f0e1" font-family="Songti SC, SimSun, serif" font-size="22" text-anchor="middle">
+    <text x="32" y="29">温</text>
+    <text x="32" y="52">故</text>
+  </g>
+</svg>

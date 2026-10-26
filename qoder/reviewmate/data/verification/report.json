@@ -1,0 +1,197 @@
+{
+  "generated_at": "2026-10-26T18:31:39",
+  "session_id": "verify-20261026-183139",
+  "db_path": "/home/ycl_berserk/qoder-reviewmate/data/seekdb/reviewmate.db",
+  "powercontext_url": "http://127.0.0.1:8100",
+  "checks": [
+    {
+      "check": "环境就绪",
+      "ok": true,
+      "detail": "seekdb=/home/ycl_berserk/qoder-reviewmate/data/seekdb/reviewmate.db，PowerContext=http://127.0.0.1:8100"
+    },
+    {
+      "check": "PowerContext 健康检查",
+      "ok": true,
+      "detail": "ready"
+    },
+    {
+      "check": "seekdb 知识库",
+      "ok": true,
+      "detail": "4 篇笔记 / 20 个片段 / 4 门课程"
+    },
+    {
+      "check": "PowerContext scope 建立",
+      "ok": true,
+      "detail": "scope=scp_17zvk8r1wprjnnccxw8c0bn3vf"
+    },
+    {
+      "check": "混合检索命中两路",
+      "ok": true,
+      "detail": "全文 3 条，向量 5 条，保留全文 1 / 向量 5"
+    },
+    {
+      "check": "引用可回到原文",
+      "ok": true,
+      "detail": "《虚拟内存与页面置换》第 4 页 · LRU 与 FIFO 的对比"
+    },
+    {
+      "check": "回答带可用引用",
+      "ok": true,
+      "detail": "模式=extractive，直接引用 1/5 条"
+    },
+    {
+      "check": "自动记录提问",
+      "ok": true,
+      "detail": "entry=mem_ent_52200ba8c1bf41f3af61c2d6eea40ed5"
+    },
+    {
+      "check": "薄弱点写入并保留",
+      "ok": true,
+      "detail": "记忆 2 条，类型=study-progress,weak-point"
+    },
+    {
+      "check": "后续提问复用记忆",
+      "ok": true,
+      "detail": "PowerContext 检索命中 2 条历史记忆"
+    },
+    {
+      "check": "复习计划读取薄弱点",
+      "ok": true,
+      "detail": "薄弱点 1 条，覆盖 1 篇笔记，模式=template"
+    },
+    {
+      "check": "QA 日志可追溯",
+      "ok": true,
+      "detail": "本会话 2 条问答记录，最新 qa_id=qa_c4fc28dc42fb4adb"
+    }
+  ],
+  "evidence": {
+    "seekdb_stats": {
+      "documents": 4,
+      "chunks": 20,
+      "asks": 18,
+      "courses": [
+        {
+          "course": "操作系统",
+          "documents": 1,
+          "chunks": 5
+        },
+        {
+          "course": "数据库",
+          "documents": 1,
+          "chunks": 5
+        },
+        {
+          "course": "机器学习",
+          "documents": 1,
+          "chunks": 5
+        },
+        {
+          "course": "计算机网络",
+          "documents": 1,
+          "chunks": 5
+        }
+      ]
+    },
+    "scope_id": "scp_17zvk8r1wprjnnccxw8c0bn3vf",
+    "ask": {
+      "qa_id": "qa_c4fc28dc42fb4adb",
+      "answer_mode": "extractive",
+      "retrieval": {
+        "channels": {
+          "fulltext": 3,
+          "vector": 5
+        },
+        "retained": {
+          "fulltext": 1,
+          "vector": 5
+        },
+        "candidates": 8,
+        "channel_limit": 18,
+        "attempts": 1,
+        "precision_filter": {
+          "vector_margin": 0.45,
+          "fts_ratio": 0.25
+        }
+      },
+      "citations": [
+        {
+          "index": 1,
+          "title": "虚拟内存与页面置换",
+          "heading": "LRU 与 FIFO 的对比",
+          "page_no": 4,
+          "used": true,
+          "fts_rank": 1,
+          "vector_rank": 1
+        },
+        {
+          "index": 2,
+          "title": "虚拟内存与页面置换",
+          "heading": "页表与地址翻译",
+          "page_no": 2,
+          "used": false,
+          "fts_rank": null,
+          "vector_rank": 2
+        },
+        {
+          "index": 3,
+          "title": "虚拟内存与页面置换",
+          "heading": "为什么需要虚拟内存",
+          "page_no": 1,
+          "used": false,
+          "fts_rank": null,
+          "vector_rank": 3
+        },
+        {
+          "index": 4,
+          "title": "虚拟内存与页面置换",
+          "heading": "工作集与抖动",
+          "page_no": 5,
+          "used": false,
+          "fts_rank": null,
+          "vector_rank": 4
+        },
+        {
+          "index": 5,
+          "title": "虚拟内存与页面置换",
+          "heading": "缺页与页面置换",
+          "page_no": 3,
+          "used": false,
+          "fts_rank": null,
+          "vector_rank": 5
+        }
+      ]
+    },
+    "memory_entries": [
+      {
+        "entry_id": "mem_ent_52200ba8c1bf41f3af61c2d6eea40ed5",
+        "text": "操作系统｜提问：LRU 和 FIFO 有什么区别？为什么 FIFO 会出现 Belady 异常？；参考：虚拟内存与页面置换",
+        "kind": "study-progress",
+        "score": 1.0,
+        "matched_by": [
+          "list"
+        ]
+      },
+      {
+        "entry_id": "mem_ent_76a13bcbe523455a89223dbe38e07cb5",
+        "text": "薄弱点：虚拟内存与页面置换 · LRU 与 FIFO 的对比。补充说明：FIFO 的 Belady 异常与 LRU 近似实现",
+        "kind": "weak-point",
+        "score": 1.0,
+        "matched_by": [
+          "list"
+        ]
+      }
+    ],
+    "memory_reuse_hits": 2,
+    "plan": {
+      "mode": "template",
+      "weak_points": 1,
+      "documents": [
+        "虚拟内存与页面置换"
+      ],
+      "excerpt": "复习计划 · 操作系统（约 35 分钟）\n\n1. 先处理薄弱点（10 分钟）\n   - 回看并复述：薄弱点：虚拟内存与页面置换 · LRU 与 FIFO 的对比。补充说明：FIFO 的 Belady 异常与 LRU 近似实现\n2. 精读并做对照笔记（20 分钟）\n   - 《虚拟内存与页面置换》（操作系统，共 5 段）\n3. 自测与回收（5 分钟）\n   - 针对上面的每个知识点，用自己的话回答一次，再回到原文核对。\n   - 仍不清楚的内容，标记为新的薄弱点，下一次复习会优先出现。\n\n本地计划模板生成（未配置大模型）。"
+    }
+  },
+  "passed": 12,
+  "failed": 0
+}

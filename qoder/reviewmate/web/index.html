@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>温故 ReviewMate · 会记得你的课程笔记复习助手</title>
+  <meta name="description" content="基于 OceanBase seekdb 混合检索与 PowerContext 学习记忆的课程笔记复习助手。">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="seal" aria-hidden="true">温故</span>
+      <span class="brand-text">
+        <strong>ReviewMate</strong>
+        <small>会记得你的课程笔记复习助手</small>
+      </span>
+    </a>
+    <div class="status-row" id="status-row" aria-live="polite">
+      <span class="status" id="status-seekdb"><i></i><span>seekdb 连接中</span></span>
+      <span class="status" id="status-memory"><i></i><span>PowerContext 连接中</span></span>
+      <span class="status" id="status-llm"><i></i><span>回答模式加载中</span></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="panel session-panel">
+        <div class="panel-head">
+          <h2>学习会话</h2>
+          <button class="ghost tiny" id="new-session" type="button">换一个</button>
+        </div>
+        <div class="session-id" id="session-id">sess_</div>
+        <p class="hint">学习记忆按会话隔离。换一个会话，就像换一位新同学，从零开始积累。</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>知识库</h2>
+          <span class="counter" id="doc-counter">0 篇</span>
+        </div>
+        <div class="course-filter" id="course-filter"></div>
+        <ul class="doc-list" id="doc-list">
+          <li class="empty">正在读取笔记目录…</li>
+        </ul>
+      </section>
+
+      <section class="panel memory-panel">
+        <div class="panel-head">
+          <h2>学习记忆</h2>
+          <span class="counter" id="memory-counter">0 条</span>
+        </div>
+        <p class="memory-scope" id="memory-scope">PowerContext 未连接</p>
+        <ul class="memory-list" id="memory-list">
+          <li class="empty">提问或标记薄弱点后，这里会出现记录。</li>
+        </ul>
+        <form class="inline-form" id="weak-form">
+          <label class="sr-only" for="weak-topic">记录一个薄弱点</label>
+          <input id="weak-topic" maxlength="300" placeholder="记一个薄弱点，如：Belady 异常" autocomplete="off">
+          <button class="tiny" type="submit">记住</button>
+        </form>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div class="hero">
+        <div class="hero-main">
+          <p class="eyebrow">OCEANBASE SEEKDB × POWERCONTEXT</p>
+          <h1>把散落的笔记，<br><em>变成会记得你的复习教练。</em></h1>
+        </div>
+        <p class="hero-copy">
+          导入课程笔记后，ReviewMate 用全文与向量的混合检索找到原文出处，
+          再用学习记忆追踪你的薄弱点。回答尽量短，但每个结论都能回到原文核对。
+        </p>
+      </div>
+
+      <form class="composer" id="ask-form">
+        <div class="composer-top">
+          <label class="select-label">
+            <span>课程范围</span>
+            <select id="course-select">
+              <option value="">全部课程</option>
+            </select>
+          </label>
+          <span class="composer-hint">Enter 提问 · Shift + Enter 换行</span>
+        </div>
+        <label class="sr-only" for="question">你的问题</label>
+        <textarea id="question" rows="3" maxlength="2000"
+          placeholder="例如：LRU 和 FIFO 有什么区别？为什么 FIFO 会出现 Belady 异常？"></textarea>
+        <div class="composer-bottom">
+          <div class="examples" id="examples"></div>
+          <button class="primary" type="submit" id="ask-button">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-label">检索并回答</span>
+          </button>
+        </div>
+      </form>
+
+      <section class="answer-card hidden" id="answer-card" aria-live="polite">
+        <div class="answer-head">
+          <div>
+            <p class="eyebrow" id="answer-eyebrow">ANSWER</p>
+            <h2 id="answer-question"></h2>
+          </div>
+          <span class="mode-badge" id="answer-mode"></span>
+        </div>
+        <div class="answer-body" id="answer-body"></div>
+        <div class="answer-actions">
+          <button class="secondary" id="mark-weak" type="button">需要再复习，加入薄弱点</button>
+          <button class="ghost" id="make-plan" type="button">生成复习计划</button>
+        </div>
+        <div class="evidence">
+          <div class="evidence-head">
+            <h3>引用与检索证据</h3>
+            <span id="evidence-summary"></span>
+          </div>
+          <div class="evidence-list" id="evidence-list"></div>
+          <details class="extra-candidates hidden" id="extra-candidates">
+            <summary id="extra-summary">其他检索候选</summary>
+            <div class="evidence-list" id="extra-list"></div>
+          </details>
+        </div>
+        <details class="trace">
+          <summary>查看检索轨迹</summary>
+          <div class="trace-body" id="trace-body"></div>
+        </details>
+      </section>
+
+      <section class="plan-card hidden" id="plan-card" aria-live="polite">
+        <div class="answer-head">
+          <div>
+            <p class="eyebrow">REVIEW PLAN</p>
+            <h2>接下来这样复习</h2>
+          </div>
+          <span class="mode-badge" id="plan-mode"></span>
+        </div>
+        <p class="plan-memory" id="plan-memory"></p>
+        <div class="answer-body" id="plan-body"></div>
+      </section>
+
+      <section class="how-grid">
+        <article>
+          <p class="eyebrow">RETRIEVAL</p>
+          <h3>seekdb 负责找到原文</h3>
+          <p>中文全文索引与 HNSW 向量索引放在同一条 SQL 里，结构化课程过滤同时生效，再用 RRF 融合两路排名。</p>
+          <code>MATCH ... AGAINST ∪ l2_distance ... APPROXIMATE</code>
+        </article>
+        <article>
+          <p class="eyebrow">MEMORY</p>
+          <h3>PowerContext 负责记住你</h3>
+          <p>每次提问自动写入学习进度；标记的薄弱点会在下一次提问和复习计划里被检索并复用。</p>
+          <code>scope → memory/remember → memory/search</code>
+        </article>
+        <article>
+          <p class="eyebrow">LOCAL FIRST</p>
+          <h3>不联网也能演示</h3>
+          <p>中文向量模型在本地运行；没有配置大模型密钥时，系统改用可核对的摘录模式，完整流程照常可用。</p>
+          <code>BAAI/bge-small-zh-v1.5 · 512d</code>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>温故 ReviewMate · OceanBase 2026 数据库大赛 Qoder 生态赛题作品</span>
+    <span class="footer-tech">seekdb 嵌入式 · PowerContext 1.2 · FastAPI</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status"></div>
+  <noscript>本页面需要启用 JavaScript 才能使用检索与记忆功能。</noscript>
+  <script src="/app.js"></script>
+</body>
+</html>
