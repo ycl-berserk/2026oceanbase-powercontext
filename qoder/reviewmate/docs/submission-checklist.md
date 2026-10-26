@@ -7,7 +7,7 @@
 | # | 材料 | 当前状态 | 提交值 / 位置 |
 |---|---|---|---|
 | 1 | 项目网站网址 | 已发布，公开访问已验证 | <https://reviewmate-5967u15pefr.qoder.zone> |
-| 2 | 代码仓库 | 已推送 | <https://github.com/ycl-berserk/2026oceanbase-powercontext>（私有；分支 `qoder-reviewmate`，目录 `qoder/reviewmate/`；评审需授权） |
+| 2 | 代码仓库 | 已推送 | <https://github.com/ycl-berserk/2026oceanbase-powercontext>（私有；分支 `qoder-reviewmate`，目录 `qoder/reviewmate/`，项目内容 commit `d0f8ed2f`；评审需授权） |
 | 3 | 运行说明 | 已完成 | `README.md`「快速开始」 |
 | 4 | 验证样例 | 已完成并跑通 | `docs/verification.md`、`scripts/verify.py`、`data/verification/report.json` |
 | 5 | Qoder 开发记录 | 文字已完成，截图待补 | `docs/qoder-dev-log.md`、`docs/qoder/` |
@@ -81,7 +81,7 @@ git ls-files | grep -Ei '\.env$|secret|credential|\.key$|\.pem$'
 项目名称：温故 ReviewMate
 一句话：seekdb 混合检索找到原文，PowerContext 记住薄弱点，让课程复习接着上次继续。
 项目网站：https://reviewmate-5967u15pefr.qoder.zone
-代码仓库：https://github.com/ycl-berserk/2026oceanbase-powercontext（分支 qoder-reviewmate，目录 qoder/reviewmate/，commit <COMMIT_HASH>）
+代码仓库：https://github.com/ycl-berserk/2026oceanbase-powercontext（分支 qoder-reviewmate，目录 qoder/reviewmate/，项目内容 commit d0f8ed2f）
 Qoder UID：aliyun-1585490604181694
 验证入口：make verify（12 项自动检查）
 技术分工：seekdb = 全文 + 向量混合检索 / 检索日志 / 会话映射；PowerContext = 学习进度、薄弱点与复习计划记忆

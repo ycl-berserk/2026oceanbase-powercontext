@@ -94,5 +94,5 @@ make verify
 ## 提交前还需作者完成
 
 1. 在 Qoder 中打开本项目会话，导出 3–5 张关键截图或一段 1–2 分钟录屏，覆盖需求、编码、调试、验收。
-2. 项目已复制到比赛仓库分支 `qoder-reviewmate` 的 `qoder/reviewmate/`，commit hash 见 `docs/submission-checklist.md`。
+2. 项目已复制到比赛仓库分支 `qoder-reviewmate` 的 `qoder/reviewmate/`，项目内容 commit 为 `d0f8ed2f`。
 3. 用无痕窗口复核代码仓库权限与运行说明。
