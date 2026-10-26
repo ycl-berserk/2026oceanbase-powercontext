@@ -28,7 +28,6 @@ from powercontext.limits import MAX_SOURCE_ID_LENGTH
 from powercontext.sources import TEXT_EVIDENCE_PROJECTION_KEY, AdapterSourceDefinition, TextEvidence
 from powercontext.sources.connectors import (
     Connector,
-    ConnectorBinding,
     ConnectorRunCompletion,
     ConnectorRunSession,
     ConnectorRunStatus,
@@ -37,7 +36,7 @@ from powercontext.sources.models import Source, SourceMaterialization
 
 PI_EVENT_SOURCE_NAME = "pi-event"
 PI_SESSION_CONNECTOR_NAME = "pi-session-history"
-_CHECKPOINT_VERSION = 1
+_CHECKPOINT_VERSION = 2
 
 
 class PiSessionInput(BaseModel):
@@ -74,14 +73,15 @@ class PiEventSource(Source):
 def pi_event_source_id(session_id: str, event_id: str) -> str:
     """Return a stable, collision-resistant identity for one session event."""
 
-    if not isinstance(session_id, str) or not session_id or session_id != session_id.strip():
-        raise ValueError("session_id must be a non-empty trimmed string")  # noqa: TRY003
+    if not isinstance(session_id, str) or not session_id:
+        raise ValueError("session_id must be a non-empty string")  # noqa: TRY003
     if not isinstance(event_id, str) or not event_id:
         raise ValueError("event_id must be a non-empty string")  # noqa: TRY003
     identity = f"pi:{quote(session_id, safe='')}:{quote(event_id, safe='')}"
     if len(identity) > MAX_SOURCE_ID_LENGTH:
         digest = hashlib.sha256(f"{session_id}\x00{event_id}".encode()).hexdigest()
-        identity = f"pi:sha256:{digest}"
+        # "!" is percent-encoded in the readable form above, so this namespace cannot collide with it.
+        identity = f"pi:!sha256:{digest}"
     return identity
 
 
@@ -89,7 +89,7 @@ def _decode_jsonl(content: bytes) -> list[dict[str, Any]]:
     try:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError as error:
-        raise ValueError("Pi session archive must be valid UTF-8") from error
+        raise ValueError("Pi session archive must be valid UTF-8") from error  # noqa: TRY003
     records: list[dict[str, Any]] = []
     for line in text.splitlines():
         if not line.strip():
@@ -97,9 +97,9 @@ def _decode_jsonl(content: bytes) -> list[dict[str, Any]]:
         try:
             value = json.loads(line)
         except json.JSONDecodeError as error:
-            raise ValueError("Pi session archive contains invalid JSON") from error
+            raise ValueError("Pi session archive contains invalid JSON") from error  # noqa: TRY003
         if not isinstance(value, dict):
-            raise ValueError("Pi session archive records must be JSON objects")  # noqa: TRY003
+            raise ValueError("Pi session archive records must be JSON objects")  # noqa: TRY003, TRY004
         records.append(value)
     if not records:
         raise ValueError("Pi session archive must contain a session header")  # noqa: TRY003
@@ -138,19 +138,27 @@ def _text_blocks(content: object) -> list[str] | None:
     return parts
 
 
-def _event_content(record: dict[str, Any]) -> tuple[str, str] | None:
+def _visible(body: str) -> bool:
+    return bool(body.strip())
+
+
+def _event_content(record: dict[str, Any]) -> tuple[str, str] | None:  # noqa: C901 - one branch per event type
     event_type = record.get("type")
     if event_type == "message":
         message = record.get("message")
         if not isinstance(message, dict):
             return None
         role = message.get("role")
-        if not isinstance(role, str) or not role:
+        if not isinstance(role, str) or not role or role == "system":
             return None
         if role == "bashExecution":
             command = message.get("command")
             output = message.get("output")
-            body = f"$ {command or ''}\n{output or ''}"
+            command = command if isinstance(command, str) else ""
+            output = output if isinstance(output, str) else ""
+            body = f"$ {command}\n{output}"
+            if not _visible(body):
+                return None
         elif role == "toolResult":
             name = message.get("toolName")
             call_id = message.get("toolCallId")
@@ -161,27 +169,26 @@ def _event_content(record: dict[str, Any]) -> tuple[str, str] | None:
             if parts is None:
                 return None
             body = "\n".join(parts)
-        body = body.strip()
-        if not body:
-            return None
+            if not _visible(body):
+                return None
         return role, body
     if event_type in {"compaction", "branch_summary"}:
         summary = record.get("summary")
-        if not isinstance(summary, str) or not summary.strip():
+        if not isinstance(summary, str) or not _visible(summary):
             return None
         return str(event_type), summary
     if event_type == "custom_message":
         parts = _text_blocks(record.get("content"))
         if parts is None:
             return None
-        body = "\n".join(parts).strip()
-        if not body:
+        body = "\n".join(parts)
+        if not _visible(body):
             return None
         return "custom", body
     return None
 
 
-def parse_pi_session(value: PiSessionInput) -> tuple[PiEventInput, ...]:
+def parse_pi_session(value: PiSessionInput) -> tuple[PiEventInput, ...]:  # noqa: C901 - graph and visibility validation
     """Parse the complete ancestor chain of the selected leaf into visible events."""
 
     records = _decode_jsonl(value.content)
@@ -196,7 +203,9 @@ def parse_pi_session(value: PiSessionInput) -> tuple[PiEventInput, ...]:
         event_id = _record_id(record)
         if event_id in nodes:
             raise ValueError("Pi session event ids must be unique")  # noqa: TRY003
-        parent_id = record.get("parentId")
+        if "parentId" not in record:
+            raise ValueError("Pi session events must declare parentId")  # noqa: TRY003
+        parent_id = record["parentId"]
         if parent_id is not None:
             if not isinstance(parent_id, str) or not parent_id:
                 raise ValueError("Pi parentId must be null or a non-empty string")  # noqa: TRY003
@@ -309,11 +318,11 @@ def _load_checkpoint(value: object) -> dict[str, str]:
         raise ValueError("Pi connector checkpoint is invalid")  # noqa: TRY003
     events = value.get("events")
     if not isinstance(events, dict):
-        raise ValueError("Pi connector checkpoint is invalid")  # noqa: TRY003
+        raise ValueError("Pi connector checkpoint is invalid")  # noqa: TRY003, TRY004
     loaded: dict[str, str] = {}
     for event_id, digest in events.items():
         if not isinstance(event_id, str) or not isinstance(digest, str):
-            raise ValueError("Pi connector checkpoint is invalid")  # noqa: TRY003
+            raise ValueError("Pi connector checkpoint is invalid")  # noqa: TRY003, TRY004
         loaded[event_id] = digest
     return loaded
 
@@ -330,21 +339,24 @@ class PiSessionConnector(Connector):
         self._leaf_id = leaf_id
 
     async def run(self, session: ConnectorRunSession, /) -> ConnectorRunCompletion:
-        events = parse_pi_session(
-            PiSessionInput(content=self._path.read_bytes(), leaf_id=self._leaf_id)
-        )
+        content = self._path.read_bytes()
+        records = _decode_jsonl(content)
+        session_id = _record_id(records[0])
+        events = parse_pi_session(PiSessionInput(content=content, leaf_id=self._leaf_id))
         imported = _load_checkpoint(session.checkpoint)
+        for record in records[1:]:
+            identity = pi_event_source_id(session_id, _record_id(record))
+            previous = imported.get(identity)
+            if previous is not None and previous != _record_digest(record):
+                raise ValueError(f"imported Pi event {record['id']!r} was rewritten")  # noqa: TRY003
         next_checkpoint = dict(imported)
         for event in events:
-            digest = _record_digest(event.record)
-            previous = imported.get(event.event_id)
-            if previous is not None:
-                if previous != digest:
-                    raise ValueError(f"imported Pi event {event.event_id!r} was rewritten")  # noqa: TRY003
+            identity = pi_event_source_id(event.session_id, event.event_id)
+            if identity in imported:
                 continue
             outcome = await session.submit(event.event_id, PI_EVENT_SOURCE_NAME, event)
             if outcome.source_ref is not None:
-                next_checkpoint[event.event_id] = digest
+                next_checkpoint[identity] = _record_digest(event.record)
         return ConnectorRunCompletion(
             status=ConnectorRunStatus.COMPLETE,
             checkpoint={"version": _CHECKPOINT_VERSION, "events": next_checkpoint},
