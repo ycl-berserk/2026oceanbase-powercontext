@@ -1,0 +1,2 @@
+[console_scripts]
+sddctx = sdd_context.cli:main

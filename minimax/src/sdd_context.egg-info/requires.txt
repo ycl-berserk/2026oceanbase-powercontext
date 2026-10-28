@@ -1,0 +1,7 @@
+pylibseekdb>=1.4.0
+pymysql>=1.1.0
+httpx>=0.27.0
+powercontext[builtin,cli,ops]<2,>=1.2.0
+
+[dev]
+pytest>=8.0.0
