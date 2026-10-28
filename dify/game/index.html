@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>译者城市 · 第 13 号片区</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="stage" tabindex="0" aria-label="译者城市：第 13 号片区">
+    <canvas id="scene" width="1920" height="1200" aria-label="档案馆房间"></canvas>
+
+    <div id="hud" aria-hidden="true">
+      <div class="hud-place">
+        <div class="place-line"><span class="dot"></span><span id="placeName">档案馆 · 译名台</span></div>
+        <div class="turn-line">潮历今夜 · <span id="turnCount">第 0 次动作</span></div>
+      </div>
+      <div class="hud-tide">
+        <div class="tide-head"><span>潮位</span><b id="tideValue">2.40</b><span class="tide-max">/ 3.00 m</span></div>
+        <div class="tide-track">
+          <div class="tide-fill" id="tideFill"></div>
+          <div class="tide-ticks"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tide-marker" id="tideMarker"></div>
+        </div>
+      </div>
+      <div class="hud-clues" id="clueRow"></div>
+      <div class="hud-actions">
+        <button id="notebookBtn" type="button" title="线索笔记 (N)">笔记</button>
+        <button id="missionBtn" type="button" title="任务目标 (M)">任务</button>
+      </div>
+    </div>
+
+    <div id="prompt" class="is-hidden"><span class="key">E</span><span id="promptText">交谈</span></div>
+    <div id="toast" class="is-hidden" role="status" aria-live="polite"></div>
+
+    <section id="dialogue" class="is-hidden" aria-label="对话">
+      <div class="portrait-frame">
+        <img id="portrait" alt="" draggable="false">
+        <div class="portrait-edge"></div>
+      </div>
+      <div class="dialogue-main">
+        <div class="nameplate">
+          <span id="speaker">纪</span>
+          <span id="speakerRole">档案馆值班员</span>
+        </div>
+        <div class="dialogue-scroll" id="dialogueScroll">
+          <div id="playerEcho" class="player-echo is-hidden"></div>
+          <div id="dialogueText" class="dialogue-text" aria-live="polite"></div>
+        </div>
+        <div class="chips" id="chips"></div>
+        <form class="input-row" id="askForm" autocomplete="off">
+          <input id="askInput" type="text" maxlength="160" placeholder="对纪说……" aria-label="输入对话">
+          <button id="sendBtn" type="submit">说</button>
+          <button id="closeBtn" type="button" class="ghost">离开 <span class="key small">Esc</span></button>
+        </form>
+      </div>
+    </section>
+
+    <section id="title" class="screen title-screen">
+      <div class="title-art"></div>
+      <div class="title-shade"></div>
+      <div class="title-card">
+        <div class="kicker">潮历今夜 · 23:10 · 内环档案馆</div>
+        <h1>译者城市</h1>
+        <h2>第 13 号片区</h2>
+        <p class="logline">潮水三小时后到达。<br>第 13 号片区在撤离名册上没有名字——<br>不是没有条目，而是它的分类被人从档案里拿走了。</p>
+        <p class="title-mission">你是一名夜间值班的译名官。问人、找证据、改名。<br>在潮水到 3.00 m 之前，把这块低地重新写回名册。</p>
+        <button id="startBtn" class="primary" type="button">推门进去</button>
+        <div class="title-controls">
+          <span><span class="key">WASD</span> 走动</span>
+          <span><span class="key">E</span> 交谈</span>
+          <span><span class="key">N</span> 笔记</span>
+          <span><span class="key">Esc</span> 离开对话</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="prologue" class="screen prologue-screen is-hidden">
+      <div class="prologue-card">
+        <div class="prologue-head">
+          <span class="kicker">23:10 · 档案馆</span>
+          <h3>今夜的第一份记录</h3>
+        </div>
+        <div id="prologueText" class="prologue-text"></div>
+        <div class="prologue-foot">
+          <span class="hint">按 <span class="key">Enter</span> 继续</span>
+          <button id="prologueBtn" class="primary" type="button">进入档案馆</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="ending" class="screen ending-screen is-hidden">
+      <div class="ending-art"></div>
+      <div class="ending-shade"></div>
+      <div class="ending-card">
+        <div class="kicker">结局</div>
+        <h2 id="endingTitle">地图上的新词</h2>
+        <div id="endingText" class="ending-text"></div>
+        <div id="endingStats" class="ending-stats"></div>
+        <div class="ending-actions">
+          <button id="restartBtn" class="primary" type="button">再来一局</button>
+          <button id="endingNoteBtn" class="ghost" type="button">查看笔记</button>
+        </div>
+      </div>
+    </section>
+
+    <aside id="notebook" class="drawer" aria-label="线索笔记">
+      <div class="drawer-head">
+        <div>
+          <span class="kicker">译名官手记</span>
+          <h3>第 13 号片区</h3>
+        </div>
+        <button id="notebookClose" class="icon-btn" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="drawer-body">
+        <div class="note-block">
+          <h4>目标</h4>
+          <p>在潮水到 <b>3.00 m</b> 前，把第 13 号片区重新登记为 <b>lo-ul-dom</b>（潮蚀低地），让它进入撤离名册。</p>
+          <p class="muted">至少两份互相独立的证据。证据越多，结局越好。</p>
+        </div>
+        <div class="note-block">
+          <h4>线索 <span id="noteClueCount">0 / 4</span></h4>
+          <ul id="noteClues" class="clue-list"></ul>
+        </div>
+        <div class="note-block">
+          <h4>信任</h4>
+          <div id="noteTrust" class="trust-list"></div>
+        </div>
+        <div class="note-block">
+          <h4>状态</h4>
+          <div class="stat-line"><span>潮时</span><b id="noteTide">2.40 m</b></div>
+          <div class="stat-line"><span>动作</span><b id="noteTurns">0</b></div>
+          <div class="stat-line"><span>已联系叶</span><b id="noteYe">否</b></div>
+        </div>
+      </div>
+      <div class="drawer-foot">
+        <button id="recordBtn" class="ghost" type="button">调阅夜间记录</button>
+        <button id="notebookDone" class="primary" type="button">合上手记</button>
+      </div>
+    </aside>
+
+    <section id="record" class="record-screen is-hidden" aria-label="夜间记录">
+      <div class="record-card">
+        <div class="drawer-head">
+          <div>
+            <span class="kicker">来自 PowerContext</span>
+            <h3>译名台的夜间记录</h3>
+          </div>
+          <button id="recordClose" class="icon-btn" type="button" aria-label="关闭">×</button>
+        </div>
+        <div id="recordText" class="record-text">正在调阅……</div>
+      </div>
+    </section>
+
+    <div id="loading" class="loading is-hidden">
+      <div class="loading-inner">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <p id="loadingText">译名台在等回声……</p>
+      </div>
+    </div>
+
+    <div id="whisper" class="whisper is-hidden" aria-hidden="true"></div>
+  </main>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
