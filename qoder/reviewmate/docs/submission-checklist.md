@@ -84,6 +84,8 @@ git ls-files | grep -Ei '\.env$|secret|credential|\.key$|\.pem$'
 项目网站：https://reviewmate-5967u15pefr.qoder.zone
 代码仓库：https://github.com/ycl-berserk/2026oceanbase-powercontext（分支 qoder-reviewmate，目录 qoder/reviewmate/，项目内容基线 commit 56d8579e）
 Qoder UID：aliyun-1585490604181694
+运行说明：qoder/reviewmate/README.md「快速开始」（配置 .env → make powercontext → make ingest → make serve，打开 127.0.0.1:8090）
+开发记录：qoder/reviewmate/docs/qoder-dev-log.md + docs/qoder/ 四张 Qoder CLI 截图
 验证入口：make verify（12 项自动检查）
 技术分工：seekdb = 全文 + 向量混合检索 / 检索日志 / 会话映射；PowerContext = 学习进度、薄弱点与复习计划记忆
 ```
