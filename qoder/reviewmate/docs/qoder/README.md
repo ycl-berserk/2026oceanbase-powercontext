@@ -1,21 +1,18 @@
 # Qoder 开发记录材料
 
-在此目录放入提交用的 Qoder 对话截图或录屏。当前目录只有说明文件，尚未放入截图。
+本目录是提交用的 Qoder 对话截图。四张截图均取自 **Qoder CLI（qodercn / `qoderclicn` 1.1.78）** 的终端会话，工作目录经 WSL 访问 `~/qoder-reviewmate`。截图时已关闭 Inline Thinking，画面中不含模型思考过程；截图按窗口范围直接截取，未修改内容。
 
-建议命名：
+| 文件 | 对应阶段 | 画面内容 |
+|---|---|---|
+| `01-plan.png` | 交付计划 | `web/` 同步范围（3 个文件与行数）、待确认项、测试与发布顺序 |
+| `02-retrieval.png` | seekdb 混合检索 | 一条 `UNION ALL` SQL、两路候选阈值过滤、RRF 计算表与页码引用 |
+| `03-session-isolation.png` | PowerContext 记忆 | 两个 session 的 scope、同一问题 hits 2 vs 0、写入薄弱点后下一问命中 |
+| `04-verify.png` | 验收与发布 | `make verify` 12 通过 / 0 失败、重启后 `/api/health`、Sites 发布遇到凭据缺失的原始记录 |
 
-```
-01-requirements.png     需求拆解与项目方向
-02-seekdb-spike.png     seekdb 混合检索验证
-03-powercontext.png     PowerContext scope 与记忆验证
-04-build.png            应用编码与调试
-05-verify.png           端到端验收与截图
-demo.mp4                可选：1–2 分钟流程录屏
-```
+账号 UID 见 `docs/qoder-dev-log.md`：`aliyun-1585490604181694`。
 
-要求：
+几点说明：
 
-- 画面中同时出现 Qoder 界面与项目文件/终端结果，能对应 `docs/qoder-dev-log.md` 的阶段。
-- 至少一张能看出是 Qoder 会话，而不是普通终端或浏览器。
-- 涂掉姓名、学号、联系方式、真实密钥与本地隐私路径。
-- 提交前在 `docs/qoder-dev-log.md` 与 `docs/submission-checklist.md` 填入 Qoder 账号 UID。
+- 画面中保留了本机路径、会话账号与窗口状态栏，属于 Qoder CLI 的正常界面，不包含真实密钥或凭据值。
+- `04-verify.png` 原样保留了发布环节因终端凭据缺失而中断的记录，没有删改。
+- `docs/qoder-dev-log.md` 的阶段划分与本目录截图一一对应。

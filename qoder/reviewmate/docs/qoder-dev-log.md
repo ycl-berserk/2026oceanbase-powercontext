@@ -4,7 +4,16 @@
 >
 > **Qoder 账号 UID**：`aliyun-1585490604181694`
 >
-> **待作者补充（提交前）**：从 Qoder 会话导出的关键截图或录屏，放入 `docs/qoder/`。截图应覆盖需求拆解、编码、调试与验收四个环节，并与本文相互对应。
+> **使用工具**：Qoder CLI（qodercn，`qoderclicn` 1.1.78），Windows 终端经 WSL 访问 `~/qoder-reviewmate`。
+>
+> **开发记录截图**：位于 `docs/qoder/`，均取自上述 Qoder CLI 会话，截图时关闭 Inline Thinking，未修改画面内容。
+>
+> | 文件 | 环节 | 画面内容 |
+> |---|---|---|
+> | `01-plan.png` | 交付计划 | `web/` 同步的 3 个文件与行数、待确认项、测试与发布顺序 |
+> | `02-retrieval.png` | 混合检索 | 一条 `UNION ALL` SQL、两路候选阈值过滤、RRF 计算表与页码引用 |
+> | `03-session-isolation.png` | 学习记忆 | 两个 session 的 scope、同一问题 hits 2 vs 0、薄弱点写入后下一问命中 |
+> | `04-verify.png` | 验收 | `make verify` 12 通过 / 0 失败、重启后 `/api/health`、Sites 发布遇凭据缺失的原始记录 |
 
 ## 开发环境
 
@@ -93,6 +102,6 @@ make verify
 
 ## 提交前还需作者完成
 
-1. 在 Qoder 中打开本项目会话，导出 3–5 张关键截图或一段 1–2 分钟录屏，覆盖需求、编码、调试、验收。
+1. 开发记录截图已放入 `docs/qoder/`（四张，见文首表格），来自 Qoder CLI 会话；如需补充录屏可另加 `docs/qoder/demo.mp4`。
 2. 项目已复制到比赛仓库分支 `qoder-reviewmate` 的 `qoder/reviewmate/`，项目内容 commit 为 `d0f8ed2f`。
 3. 用无痕窗口复核代码仓库权限与运行说明。

@@ -80,6 +80,7 @@ const els = {
   planMode: $("plan-mode"),
   planMemory: $("plan-memory"),
   planBody: $("plan-body"),
+  workspaceEmpty: $("workspace-empty"),
   toast: $("toast"),
   statusSeekdb: $("status-seekdb"),
   statusMemory: $("status-memory"),
@@ -231,6 +232,7 @@ function bindEvents() {
     state.lastCitations = [];
     els.answerCard.classList.add("hidden");
     els.planCard.classList.add("hidden");
+    els.workspaceEmpty.classList.remove("hidden");
     els.memoryList.innerHTML = '<li class="empty">正在读取新的学习记忆…</li>';
     loadMemory();
     toast("已切换到一个新的学习会话");
@@ -430,7 +432,9 @@ function renderMemory(data) {
     )}</li>`;
     return;
   }
-  els.memoryScope.textContent = `scope ${data.scope_id || "—"}`;
+  const scope = data.scope_id || "—";
+  els.memoryScope.textContent = `scope ${shorten(scope, 16)}`;
+  els.memoryScope.title = scope;
   if (!entries.length) {
     els.memoryList.innerHTML =
       '<li class="empty">还没有记忆。提一个问题，或记下一个薄弱点。</li>';
@@ -480,6 +484,7 @@ async function ask(rawQuestion) {
   setBusy(true);
   els.answerCard.classList.remove("hidden");
   els.planCard.classList.add("hidden");
+  els.workspaceEmpty.classList.add("hidden");
   els.answerQuestion.textContent = question;
   els.answerEyebrow.textContent = `${state.course || "全部课程"} · ANSWER`;
   els.answerMode.textContent = "检索中";

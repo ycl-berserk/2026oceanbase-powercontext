@@ -32,7 +32,7 @@
           <button class="ghost tiny" id="new-session" type="button">换一个</button>
         </div>
         <div class="session-id" id="session-id">sess_</div>
-        <p class="hint">学习记忆按会话隔离。换一个会话，就像换一位新同学，从零开始积累。</p>
+        <p class="hint">记忆按会话隔离，换一个会话就从零积累。</p>
       </section>
 
       <section class="panel">
@@ -64,15 +64,12 @@
     </aside>
 
     <section class="workspace">
-      <div class="hero">
-        <div class="hero-main">
-          <p class="eyebrow">OCEANBASE SEEKDB × POWERCONTEXT</p>
-          <h1>把散落的笔记，<br><em>变成会记得你的复习教练。</em></h1>
+      <div class="workspace-head">
+        <div>
+          <p class="eyebrow">LOCAL STUDY DESK</p>
+          <h1>今天想复习什么？</h1>
         </div>
-        <p class="hero-copy">
-          导入课程笔记后，ReviewMate 用全文与向量的混合检索找到原文出处，
-          再用学习记忆追踪你的薄弱点。回答尽量短，但每个结论都能回到原文核对。
-        </p>
+        <p class="workspace-note">答案带原文页码 · 记忆按会话隔离</p>
       </div>
 
       <form class="composer" id="ask-form">
@@ -96,6 +93,14 @@
           </button>
         </div>
       </form>
+
+      <section class="workspace-empty" id="workspace-empty">
+        <span class="empty-seal" aria-hidden="true">温故</span>
+        <p class="empty-title">答案会出现在这里</p>
+        <p class="empty-copy">
+          提问后显示简短结论、原文页码和可核对的引用；标记的薄弱点会进入下一次提问和复习计划。
+        </p>
+      </section>
 
       <section class="answer-card hidden" id="answer-card" aria-live="polite">
         <div class="answer-head">
@@ -137,27 +142,6 @@
         </div>
         <p class="plan-memory" id="plan-memory"></p>
         <div class="answer-body" id="plan-body"></div>
-      </section>
-
-      <section class="how-grid">
-        <article>
-          <p class="eyebrow">RETRIEVAL</p>
-          <h3>seekdb 负责找到原文</h3>
-          <p>中文全文索引与 HNSW 向量索引放在同一条 SQL 里，结构化课程过滤同时生效，再用 RRF 融合两路排名。</p>
-          <code>MATCH ... AGAINST ∪ l2_distance ... APPROXIMATE</code>
-        </article>
-        <article>
-          <p class="eyebrow">MEMORY</p>
-          <h3>PowerContext 负责记住你</h3>
-          <p>每次提问自动写入学习进度；标记的薄弱点会在下一次提问和复习计划里被检索并复用。</p>
-          <code>scope → memory/remember → memory/search</code>
-        </article>
-        <article>
-          <p class="eyebrow">LOCAL FIRST</p>
-          <h3>不联网也能演示</h3>
-          <p>中文向量模型在本地运行；没有配置大模型密钥时，系统改用可核对的摘录模式，完整流程照常可用。</p>
-          <code>BAAI/bge-small-zh-v1.5 · 512d</code>
-        </article>
       </section>
     </section>
   </main>

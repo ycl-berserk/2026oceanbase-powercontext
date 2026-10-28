@@ -10,7 +10,7 @@
 | 2 | 代码仓库 | 已推送 | <https://github.com/ycl-berserk/2026oceanbase-powercontext>（私有；分支 `qoder-reviewmate`，目录 `qoder/reviewmate/`，项目内容 commit `d0f8ed2f`；评审需授权） |
 | 3 | 运行说明 | 已完成 | `README.md`「快速开始」 |
 | 4 | 验证样例 | 已完成并跑通 | `docs/verification.md`、`scripts/verify.py`、`data/verification/report.json` |
-| 5 | Qoder 开发记录 | 文字已完成，截图待补 | `docs/qoder-dev-log.md`、`docs/qoder/` |
+| 5 | Qoder 开发记录 | 已完成（4 张截图，Qoder CLI 会话） | `docs/qoder-dev-log.md`、`docs/qoder/` |
 | 6 | Qoder 账号 UID | 已填写 | `aliyun-1585490604181694` |
 | 7 | 使用效果材料（鼓励） | 可选 | 试用人数、次数、匿名反馈；附来源截图 |
 | 8 | 演示视频（可选） | 待定 | 1–2 分钟页面流程录屏 |
@@ -53,11 +53,11 @@ git ls-files | grep -Ei '\.env$|secret|credential|\.key$|\.pem$'
 
 ## 四、Qoder 开发记录
 
-- [ ] 从 Qoder 会话导出 3–5 张截图或 1–2 分钟录屏，覆盖：需求拆解、seekdb/PowerContext 验证、编码、调试、验收。
-- [ ] 截图内可见 Qoder 界面与项目文件，避免只截结果。
+- [x] 从 Qoder CLI（qodercn，`qoderclicn` 1.1.78）会话截取 4 张截图，覆盖：交付计划、seekdb 混合检索、PowerContext 记忆、验收。
+- [x] 截图内均为 Qoder CLI 会话界面与真实终端输出，未只截结果。
 - [x] Qoder 账号 UID 已填写：`aliyun-1585490604181694`。
-- [ ] 确保截图中的密钥、个人信息已打码。
-- [ ] 将文件放入 `docs/qoder/` 并在开发记录中引用文件名。
+- [x] 截图中不含密钥；保留了 Qoder 会话账号与本机路径（账号用于归属核对）。
+- [x] 文件已放入 `docs/qoder/`，并在 `docs/qoder-dev-log.md` 中按文件名引用。
 
 ## 五、安全与合规
 
