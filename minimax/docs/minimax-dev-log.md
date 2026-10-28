@@ -11,7 +11,7 @@
 | 模型 | **MiniMax M3**（`opencode-go/minimax-m3`） |
 | 访问渠道 | OpenCode Go 订阅（`https://opencode.ai/zen/go`，Anthropic 兼容的 `/v1/messages`） |
 | 会话 | `ses_e7dc51992ffeNO5JbOH1ekSSNF` |
-| 时间 | 2026-10-28 19:17 (+08:00) |
+| 时间 | 2026-10-28 |
 | 最终提交 | `d32308e0`（`fix(minimax): implement priority filter, validation and stable ordering`） |
 
 ## 2. 提供给模型的上下文
