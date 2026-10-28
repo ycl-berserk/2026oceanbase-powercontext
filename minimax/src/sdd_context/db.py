@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import pymysql
 import pylibseekdb as seekdb
+import pymysql
 
 SCHEMA: tuple[str, ...] = (
     """
