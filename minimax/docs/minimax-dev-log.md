@@ -14,6 +14,8 @@
 | 时间 | 2026-10-28 |
 | 最终提交 | `d32308e0`（`fix(minimax): implement priority filter, validation and stable ordering`） |
 
+会话截图：`docs/evidence/minimax-session.png`（OpenCode 子会话标题栏，显示模型标识 `MiniMax-M3`）。
+
 ## 2. 提供给模型的上下文
 
 上下文由本项目 `sddctx plan` 生成（seekdb 召回），原样交给模型：
