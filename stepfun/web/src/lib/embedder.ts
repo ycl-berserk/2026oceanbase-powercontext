@@ -1,7 +1,6 @@
 import { env, pipeline } from '@huggingface/transformers';
 import type { Backend, ModelSpec, Precision } from './types';
 
-env.allowLocalModels = false;
 env.useBrowserCache = true;
 // WASM 线程数上限；浏览器未开启 cross-origin isolation 时 ORT 会自动回退单线程
 const ortEnv = env.backends?.onnx as { wasm?: { numThreads?: number } } | undefined;
@@ -77,6 +76,33 @@ export function precisionToDtype(precision: Precision): 'fp32' | 'fp16' | 'q8' {
   return 'fp32';
 }
 
+/**
+ * 如果 `web/public/models` 下已预置模型（scripts/fetch-model.sh），改用本地加载，
+ * 便于离线 / 内网演示；否则回退到 Hugging Face 在线下载。
+ */
+export async function resolveModelSource(modelId: string): Promise<{ local: boolean }> {
+  try {
+    const res = await fetch(`/models/${modelId}/config.json`, { cache: 'no-store' });
+    const type = res.headers.get('content-type') ?? '';
+    if (res.ok && type.includes('json')) {
+      env.allowLocalModels = true;
+      env.allowRemoteModels = false;
+      env.localModelPath = '/models';
+      return { local: true };
+    }
+  } catch {
+    /* 本地不存在，走在线下载 */
+  }
+  env.allowLocalModels = false;
+  env.allowRemoteModels = true;
+  return { local: false };
+}
+
+function useRemoteModels() {
+  env.allowLocalModels = false;
+  env.allowRemoteModels = true;
+}
+
 export interface LoadOptions {
   modelId: string;
   precision: Precision;
@@ -122,10 +148,11 @@ export class Embedder {
   async load(options: LoadOptions): Promise<EmbedderInfo> {
     const model = getModel(options.modelId);
     const gpu = await detectWebGpu();
+    const source = await resolveModelSource(model.id);
     let backend: Backend = options.forceWasm ? 'wasm' : gpu.available ? 'webgpu' : 'wasm';
     let dtype = precisionToDtype(options.precision);
     const notes: string[] = [];
-    if (options.forceWasm) notes.push('已手动切换为 WASM 后端');
+    if (source.local) notes.push('使用本地预置模型（/models）');    if (options.forceWasm) notes.push('已手动切换为 WASM 后端');
     if (backend === 'wasm' && dtype === 'fp16') {
       dtype = 'fp32';
       notes.push('WASM 后端不支持 fp16，已回退为 fp32 权重');
@@ -160,12 +187,30 @@ export class Embedder {
     try {
       this.extractor = await create(backend, dtype);
     } catch (err) {
-      if (backend !== 'webgpu') throw err;
-      notes.push(`WebGPU 推理初始化失败，已自动降级到 WASM：${(err as Error).message}`);
-      backend = 'wasm';
-      if (dtype === 'fp16') dtype = 'fp32';
-      downloadBytes = 0;
-      this.extractor = await create(backend, dtype);
+      const message = (err as Error).message;
+      // 本地模型文件不全 / 路径不对时，退回在线模型再试一次
+      if (source.local) {
+        notes.push(`本地模型加载失败，改用在线模型：${message}`);
+        useRemoteModels();
+        try {
+          this.extractor = await create(backend, dtype);
+        } catch (retryErr) {
+          if (backend !== 'webgpu') throw retryErr;
+          notes.push(`WebGPU 推理初始化失败，已自动降级到 WASM：${(retryErr as Error).message}`);
+          backend = 'wasm';
+          if (dtype === 'fp16') dtype = 'fp32';
+          downloadBytes = 0;
+          this.extractor = await create(backend, dtype);
+        }
+      } else if (backend === 'webgpu') {
+        notes.push(`WebGPU 推理初始化失败，已自动降级到 WASM：${message}`);
+        backend = 'wasm';
+        if (dtype === 'fp16') dtype = 'fp32';
+        downloadBytes = 0;
+        this.extractor = await create(backend, dtype);
+      } else {
+        throw err;
+      }
     }
 
     options.onProgress?.({ phase: 'init', progress: 1, loaded: 0, total: 0 });

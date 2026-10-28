@@ -124,6 +124,14 @@ async function main() {
   const list = await req('GET', `/api/kbs/${KB}/documents?limit=10`);
   check('分页读取原文', list.docs.length === 7 && list.docs.every((d) => d.text.length > 0));
 
+  // 重复导入同一批数据：应当是覆盖（upsert），而不是主键冲突
+  const repeat = await req('POST', `/api/kbs/${KB}/documents`, {
+    chunks,
+    embeddings: docs.map(([, text]) => embed(text)),
+    refresh: true,
+  });
+  check('重复导入可覆盖', repeat.inserted === 6 && repeat.total === 7, `total=${repeat.total}`);
+
   const del = await req('DELETE', `/api/kbs/${KB}/documents`, { ids: ['d1'] });
   check('删除文档', del.deleted === 1 && del.total === 6, `total=${del.total}`);
 

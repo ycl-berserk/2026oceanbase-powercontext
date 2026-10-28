@@ -236,13 +236,22 @@ export const useAppStore = defineStore('app', () => {
     return base;
   }
 
-  async function ensureActiveKb(dimension: number, suffix = ''): Promise<string> {
-    const name = ensureKbName();
+  async function ensureActiveKb(dimension: number): Promise<string> {
+    let name = ensureKbName();
     const existing = kbs.value.find((k) => k.name === name);
     if (existing && existing.dimension !== dimension) {
-      throw new Error(
-        `知识库 ${name} 的向量维度是 ${existing.dimension}，当前模型是 ${dimension} 维。请新建一个知识库或换回原模型。`
-      );
+      // 模型维度变了：不打断流程，自动新建一个匹配维度的知识库并切过去
+      const nextName = `${name}-${dimension}d`.slice(0, 40);
+      await api.createKb({
+        name: nextName,
+        label: `${existing.label} · ${dimension}d`,
+        model: settings.modelId,
+        dimension,
+      });
+      await refreshKbs();
+      activeKb.value = nextName;
+      importState.message = `原知识库是 ${existing.dimension} 维，已自动新建 ${nextName}（${dimension} 维）`;
+      return nextName;
     }
     if (!existing) {
       await api.createKb({ name, label: name, model: settings.modelId, dimension });

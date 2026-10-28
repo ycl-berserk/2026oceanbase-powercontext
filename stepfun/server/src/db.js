@@ -239,7 +239,8 @@ export async function addChunks(kbName, { chunks, embeddings, batchSize = 64, re
   const size = Math.max(1, Math.min(256, Number(batchSize) || 64));
   for (let i = 0; i < chunks.length; i += size) {
     const part = chunks.slice(i, i + size);
-    await collection.add({
+    // 用 upsert：同一份文档重复导入时覆盖旧向量，而不是主键冲突
+    await collection.upsert({
       ids: part.map((c) => c.id),
       documents: part.map((c) => c.text),
       metadatas: part.map((c) => c.metadata ?? {}),

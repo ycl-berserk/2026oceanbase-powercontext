@@ -65,6 +65,10 @@ function choosePrecision(p: Precision) {
       强制使用 WASM（验证降级路径）
     </label>
 
+    <div class="tiny dim" style="margin-bottom: 8px">
+      建议组合：WebGPU + FP16（实测比 INT8 快约 4.5 倍）／ WASM + INT8
+    </div>
+
     <button class="btn primary" style="width: 100%" :disabled="store.engine.status === 'loading'" @click="store.loadModel()">
       {{ store.engine.status === 'loading' ? '加载中…' : dirty ? '重新加载模型' : '加载模型' }}
     </button>

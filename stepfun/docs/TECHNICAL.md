@@ -19,6 +19,21 @@
 
 **量化方式**：直接使用仓库提供的 onnxruntime 动态量化权重（权重 INT8、激活推理时按范围量化），无需自行转换；FP16 为权重半精度。三档共用同一套集合结构（维度相同），但向量数值有差异，评测时分别建集合、分别向量化。
 
+**权重获取与（可选）自行量化**：
+
+| 精度 | 下载路径（Hugging Face） |
+| --- | --- |
+| FP32 | `https://huggingface.co/Xenova/bge-small-zh-v1.5/resolve/main/onnx/model.onnx` |
+| FP16 | `.../onnx/model_fp16.onnx` |
+| INT8 | `.../onnx/model_quantized.onnx` |
+
+模型由 Transformers.js 按 `dtype` 自动映射到对应文件，不需要手动指定路径。若要从 PyTorch 原始权重自行复现量化：
+
+```bash
+optimum-cli export onnx --model BAAI/bge-small-zh-v1.5 --task feature-extraction onnx/base/
+optimum-cli onnxruntime quantize --onnx-input onnx/base/model.onnx --avx512 --output onnx/int8/
+```
+
 **检索质量**（48 个分块 / 18 条查询 / 文档级 Top-5，同语料同金标）：
 
 | 精度 | Recall@5 | nDCG@5 | MRR |
@@ -64,14 +79,44 @@
 
 **数据结构**：
 
+```sql
+-- 关系表：知识库注册信息
+CREATE TABLE kb_registry (
+  name       VARCHAR(64)  NOT NULL,
+  label      VARCHAR(191) NOT NULL,
+  model      VARCHAR(191) NOT NULL,
+  dimension  INT          NOT NULL,
+  created_at BIGINT       NOT NULL,
+  updated_at BIGINT       NOT NULL,
+  PRIMARY KEY (name)
+);
+
+-- 集合：seekdb 分配的物理表名形如 c$v2$<uuid>，逻辑名是 kb_<name>
+-- 下面是从实例上 SHOW CREATE TABLE 拿到的真实 DDL（512 维示例）
+CREATE TABLE `c$v2$<uuid>` (
+  `_id`       VARBINARY(512) NOT NULL,       -- <docId>#<chunkIndex>，可复现
+  `document`  STRING         DEFAULT NULL,   -- 原文分块
+  `embedding` VECTOR(512)    DEFAULT NULL,   -- 浏览器算出的向量
+  `metadata`  JSON           DEFAULT NULL,   -- docId / docTitle / chunkIndex / chars / source
+  PRIMARY KEY (`_id`),
+  FULLTEXT KEY `idx_fts` (`document`)
+    WITH PARSER ik PARSER_PROPERTIES=(ik_mode="smart") BLOCK_SIZE 16384,
+  VECTOR KEY `idx_vec` (`embedding`)
+    WITH (DISTANCE=COSINE, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200,
+          EF_SEARCH=64, SYNC_MODE=ASYNC) BLOCK_SIZE 16384
+) ORGANIZATION HEAP DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC;
 ```
-kb_registry(name PK, label, model, dimension, created_at, updated_at)   -- 关系表
-kb_<name>(                                                             -- 集合
-  id        VARCHAR,          -- <docId>#<chunkIndex>，可复现
-  document  TEXT,             -- 原文分块
-  embedding VECTOR(512),      -- 浏览器算出的向量
-  metadata  JSON              -- docId / docTitle / chunkIndex / chars / source
-)  + HNSW(cosine) 向量索引 + ik(smart) 全文索引
+
+对应 seekdb-js 的建集合代码（`server/src/db.js`）：
+
+```js
+new Schema({
+  fulltextIndex: new FulltextIndexConfig('ik', { ik_mode: 'smart' }),
+  vectorIndex: new VectorIndexConfig({
+    hnsw: { dimension: 512, distance: 'cosine' },
+    embeddingFunction: null,   // 向量由浏览器计算，服务端不做嵌入
+  }),
+})
 ```
 
 **混合检索**：调用 `collection.hybridSearch({ query: { whereDocument: { $contains } }, knn: { queryEmbeddings }, rank: { rrf: { rankConstant: 60 } }, nResults })`。seekdb 内部走 `DBMS_HYBRID_SEARCH`：全文召回与向量召回在库内并行执行，再用 RRF 融合，客户端只提交"查询文本 + 查询向量 + 融合参数"，不做二次拼接。界面提供混合 / 向量 / 全文三种模式用于对照。
@@ -100,6 +145,17 @@ kb_<name>(                                                             -- 集合
 - **检索侧**：RRF 候选窗口 40、`rankConstant` 可调；Top-K 默认 5，与评测口径一致。
 
 **端到端延迟构成**（查询路径）：端侧查询向量化（个位数到数十毫秒，取决于后端与精度）+ seekdb 混合检索（约 13 ms @600 分块）+ 本地 HTTP 往返。因此端侧推理是主要成本项，这也解释了为什么优先 WebGPU、并对模型做量化。
+
+**浏览器内实测**（Chrome + Intel gen-12lp 集显，48 个分块）：
+
+| 配置 | 模型加载 | 48 块向量化 | 吞吐 | 查询向量化 | seekdb | 端到端 |
+| --- | --- | --- | --- | --- | --- | --- |
+| INT8 + WebGPU | 3.84 s | 18.07 s | 691 字/秒 | — | — | — |
+| FP16 + WebGPU | 6.09 s | 4.05 s | 3 083 字/秒 | 269 ms | 13 ms | 293 ms |
+| INT8 + WASM | — | — | — | 23 ms | 157 ms | 507 ms |
+
+一个重要反直觉结论：**WebGPU 上 INT8 比 FP16 慢约 4.5 倍**，因为 q8 权重需要反量化。因此推荐组合是「WebGPU + FP16」「WASM + INT8」，界面默认值可据此设置。
+
 
 ---
 

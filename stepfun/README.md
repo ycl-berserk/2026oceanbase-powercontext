@@ -81,6 +81,15 @@ npm run dev          # 同时起后端(8787)与前端(5173)
 # 打开 http://localhost:5173
 ```
 
+不想依赖 Hugging Face 网络时，可先把模型预置到本地（可选）：
+
+```bash
+bash scripts/fetch-model.sh                                   # 下载到 web/public/models
+HF_ENDPOINT=https://hf-mirror.com bash scripts/fetch-model.sh # 国内镜像
+```
+
+应用启动时会探测 `/models/<model>/config.json`，存在则改为本地加载并在模型面板提示。
+
 生产模式（后端直接托管构建产物）：
 
 ```bash

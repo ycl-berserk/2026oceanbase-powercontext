@@ -6,3 +6,5 @@ data/
 .DS_Store
 web/.vite/
 bench-results/
+# 可选的本地预置模型（bash scripts/fetch-model.sh），体积较大不入库
+web/public/models/

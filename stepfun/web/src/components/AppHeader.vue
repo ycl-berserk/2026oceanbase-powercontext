@@ -5,8 +5,14 @@ import { fmtMb } from '../lib/format';
 
 const store = useAppStore();
 
-const backend = computed(() => store.engine.info?.backend ?? (store.engine.gpu?.available ? 'webgpu' : 'wasm'));
-const backendLabel = computed(() => (backend.value === 'webgpu' ? 'WebGPU' : 'WASM'));
+const backend = computed<'webgpu' | 'wasm' | null>(() => {
+  if (store.engine.info) return store.engine.info.backend;
+  if (store.engine.gpu) return store.engine.gpu.available ? 'webgpu' : 'wasm';
+  return null;
+});
+const backendLabel = computed(() =>
+  backend.value === 'webgpu' ? 'WebGPU' : backend.value === 'wasm' ? 'WASM' : '检测中'
+);
 const precisionLabel = computed(() => {
   const p = store.settings.precision;
   return p === 'int8' ? 'INT8 (q8)' : p.toUpperCase();

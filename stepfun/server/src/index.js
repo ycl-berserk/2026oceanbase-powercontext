@@ -90,6 +90,8 @@ app.post('/api/kbs/:name/search', wrap(async (req, res) => {
 if (fs.existsSync(path.join(WEB_DIST, 'index.html'))) {
   app.use(express.static(WEB_DIST));
   app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(WEB_DIST, 'index.html')));
+} else {
+  console.warn('[web] 未找到 web/dist，当前仅提供 API。请先执行 npm run build，或使用 npm run dev。');
 }
 
 app.use((err, _req, res, _next) => {
