@@ -113,7 +113,8 @@ index f93fe628..cb9463a3 100644
 | R5 参数校验 | 函数入口两处 `raise InvalidFilter` | `test_rejects_unknown_priority`、`test_rejects_limit_out_of_range`（-1/0/101） |
 | R6 稳定排序 | 两次稳定排序（先时间倒序，再优先级升序） | `test_orders_by_priority_then_recency` |
 
-## 6. 人工干预说明
+## 6. 过程记录与人工干预
 
-- 本次 `service.py` 的修改由模型一次产出，**未做人工改码**；提交 `d32308e0` 的 diff 与上方完全一致。
+- 会话中模型先尝试用 `wsl.exe ... bash -c "python3 - <<'PY'"` 读写文件，因 PowerShell 与 bash 的引号转义冲突失败（`ScriptBlock 只能指定为 Command 参数的值`、`ParserError: 参数列表中缺少参数`）；随后改用文件写入方式完成修改。
+- 最终 `service.py` 由模型产出，**未做人工改码**；提交 `d32308e0` 的 diff 与上方完全一致。
 - 同一提交期内还修了上下文模块自身的两个缺陷（检索结果缺 `text`、重复 `start` 产生重复待办），属于模块修复，见提交 `43678c4a`，不属于本次模型改码。
