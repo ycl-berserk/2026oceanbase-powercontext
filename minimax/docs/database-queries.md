@@ -50,21 +50,25 @@ ORDER BY score DESC, doc_key ASC
 LIMIT 5;
 ```
 
-实际命中：
+实际命中（一次实测）：
 
 | kind | doc_key | score |
 | --- | --- | ---: |
-| spec | `spec:tickets#R6` | 7.967609 |
-| spec | `spec:tickets#R5` | 6.923719 |
+| spec | `spec:tickets#R6` | 8.360691 |
+| spec | `spec:tickets#R5` | 6.326565 |
 | spec | `spec:tickets#R4` | 4.703236 |
 | spec | `spec:tickets#R1` | 2.282718 |
-| code | `code:ticket_service.errors:InvalidFilter` | 6.587359 |
-| code | `code:ticket_service.service:list_tickets` | 6.386429 |
+| spec | `spec:tickets#R2` | 1.075947 |
+| code | `code:ticket_service.errors:InvalidFilter` | 5.703786 |
+| code | `code:ticket_service.service:list_tickets` | 5.340504 |
 | code | `code:ticket_service.models:Ticket` | 3.062161 |
-| test | `test:tests/test_priority_filter.py:test_rejects_unknown_priority` | 3.478307 |
-| test | `test:tests/test_priority_filter.py:test_rejects_limit_out_of_range` | 3.434314 |
+| test | `test:tests/test_priority_filter.py:test_rejects_unknown_priority` | 3.302200 |
+| test | `test:tests/test_priority_filter.py:test_rejects_limit_out_of_range` | 3.267212 |
 | test | `test:tests/test_priority_filter.py:test_filters_by_priority` | 3.056242 |
 | test | `test:tests/test_priority_filter.py:test_orders_by_priority_then_recency` | 2.584655 |
+| test | `test:tests/test_priority_filter.py:test_combines_status_and_priority` | 2.555824 |
+
+同一份数据重复导入后，BM25 分数可能有小数点后的波动；召回集合与排序在本样例中保持稳定。
 
 命中结果直接进入 `plan` 输出的 `specs` / `code` / `tests` 三段，`verify.py` 会逐条核对 `path:start_line-end_line` 是否存在。
 

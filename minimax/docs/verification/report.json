@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-10-28T19:19:04",
+  "root": "/home/wuren/pc-minimax/minimax",
+  "ok": true,
+  "checks": [
+    {
+      "check": "files",
+      "ok": true,
+      "detail": "必需文件齐全"
+    },
+    {
+      "check": "ingest",
+      "ok": true,
+      "detail": "seekdb 导入 {'spec': 6, 'code': 3, 'test': 10}，合计 19 条"
+    },
+    {
+      "check": "retrieval",
+      "ok": true,
+      "detail": "specs=5 code=3 tests=5"
+    },
+    {
+      "check": "specs",
+      "ok": true,
+      "detail": "命中 ['R1', 'R2', 'R4', 'R5', 'R6']；无效来源 []"
+    },
+    {
+      "check": "code",
+      "ok": true,
+      "detail": "src/ticket_service/service.py:11-31 覆盖 def list_tickets=True"
+    },
+    {
+      "check": "tests",
+      "ok": true,
+      "detail": "命中 5 个测试；缺少 []"
+    },
+    {
+      "check": "spec-update",
+      "ok": true,
+      "detail": "新规格文本出现=True；旧文本消失=True"
+    },
+    {
+      "check": "pc-health",
+      "ok": true,
+      "detail": "{\"url\": \"http://127.0.0.1:8102\", \"alive\": true, \"ready\": true}"
+    },
+    {
+      "check": "pc-write",
+      "ok": true,
+      "detail": "scope=scp_3krpqyxx94qfbvn3xf4h66f5fa 写入 1 条记录（空状态开始）"
+    },
+    {
+      "check": "pc-restart",
+      "ok": true,
+      "detail": "新进程读回 scope=scp_3krpqyxx94qfbvn3xf4h66f5fa todo=['待办：R4,R5,R6']"
+    },
+    {
+      "check": "red-green",
+      "ok": true,
+      "detail": "red(6da7b4a3) exit=1，当前测试 exit=0"
+    },
+    {
+      "check": "secrets",
+      "ok": true,
+      "detail": "跟踪文件未发现凭据"
+    }
+  ]
+}
