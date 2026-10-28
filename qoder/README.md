@@ -6,7 +6,7 @@
 |---|---|
 | 项目目录 | `qoder/reviewmate/` |
 | 分支 | `qoder-reviewmate`（基于 `origin/2026-competition-ecosystem`） |
-| 项目内容提交 | `d0f8ed2f` |
+| 项目内容提交 | `56d8579e` |
 | 项目网站 | <https://reviewmate-5967u15pefr.qoder.zone> |
 | Qoder UID | `aliyun-1585490604181694` |
 | 运行说明 | `qoder/reviewmate/README.md`「快速开始」 |

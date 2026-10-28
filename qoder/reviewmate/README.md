@@ -195,7 +195,7 @@ docs/              架构、验证、Qoder 开发记录与提交清单
 - 站点源码：`site/`；更新后需重新发布才会同步到线上。
 - 提交仓库：<https://github.com/ycl-berserk/2026oceanbase-powercontext>（私有，评审需授权访问）。
 - 提交分支：`qoder-reviewmate`，基于 `origin/2026-competition-ecosystem`；项目路径：`qoder/reviewmate/`。
-- 提交 commit：项目内容基线 `d0f8ed2f`；分支最新提交包含仓库地址与文档回填。
+- 提交 commit：项目内容基线 `56d8579e`；分支最新提交包含仓库地址与文档回填。
 - 提交材料清单：见 `docs/submission-checklist.md`。
 - Qoder 账号 UID：`aliyun-1585490604181694`。
 - 配置示例均为占位值，不包含真实 API Key、密码或其他凭据。

@@ -103,5 +103,5 @@ make verify
 ## 提交前还需作者完成
 
 1. 开发记录截图已放入 `docs/qoder/`（四张，见文首表格），来自 Qoder CLI 会话；如需补充录屏可另加 `docs/qoder/demo.mp4`。
-2. 项目已复制到比赛仓库分支 `qoder-reviewmate` 的 `qoder/reviewmate/`，项目内容 commit 为 `d0f8ed2f`。
+2. 项目已复制到比赛仓库分支 `qoder-reviewmate` 的 `qoder/reviewmate/`，项目内容基线 commit 为 `56d8579e`。
 3. 用无痕窗口复核代码仓库权限与运行说明。
