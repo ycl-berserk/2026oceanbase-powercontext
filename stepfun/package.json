@@ -1,0 +1,27 @@
+{
+  "name": "stepfun-mini-kb",
+  "private": true,
+  "version": "1.0.0",
+  "description": "端侧 AI 推理性能优化与 seekdb 混合检索 —— 迷你知识库（Vue 3 + Transformers.js + seekdb）",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "start": "npm --workspace server run start",
+    "preview": "npm run build && npm run start",
+    "bench:db": "node scripts/bench-db.mjs",
+    "corpus:check": "node scripts/check-corpus.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

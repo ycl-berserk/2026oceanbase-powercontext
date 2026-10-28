@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.seekdb/
+data/
+*.log
+.DS_Store
+web/.vite/
+bench-results/
