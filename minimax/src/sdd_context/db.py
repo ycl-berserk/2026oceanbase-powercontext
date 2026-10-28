@@ -131,7 +131,7 @@ class Store:
 
     def search(self, kind: str, query: str, limit: int = 4) -> list[dict[str, Any]]:
         statement = (
-            "SELECT doc_key, kind, path, symbol, heading, start_line, end_line, "
+            "SELECT doc_key, kind, path, symbol, heading, content, start_line, end_line, "
             "MATCH(content) AGAINST(%s) AS score "
             "FROM eng_docs WHERE kind = %s AND MATCH(content) AGAINST(%s) "
             "ORDER BY score DESC, doc_key ASC LIMIT %s"

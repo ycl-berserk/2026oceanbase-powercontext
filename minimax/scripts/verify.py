@@ -177,7 +177,7 @@ def main() -> int:
             cwd=ROOT,
             env=env,
         )
-        new_marker = "P3 表示“观察中”"
+        new_marker = "表示“观察中”"
         old_marker = "取值为 `P0`、`P1`、`P2`。为"
         ok = (
             ing.returncode == 0

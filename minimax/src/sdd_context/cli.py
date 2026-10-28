@@ -57,6 +57,17 @@ def _state(settings: Settings) -> PowerContextState:
     return PowerContextState(settings.powercontext_url, settings.powercontext_timeout)
 
 
+def _remember_once(
+    state: PowerContextState, scope_id: str, text: str, kind: str, reason: str
+) -> bool:
+    """重复执行 start/done 时不产生重复条目。"""
+    for entry in state.list_entries(scope_id):
+        if str(entry.get("text")) == text:
+            return False
+    state.remember(scope_id, text, kind=kind, reason=reason)
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     settings = Settings.load(getattr(args, "project", None))
@@ -92,7 +103,8 @@ def main(argv: list[str] | None = None) -> int:
         try:
             scope_id = state.ensure_scope(args.task_id)
             items = [item.strip() for item in args.items.split(",") if item.strip()]
-            state.remember(
+            _remember_once(
+                state,
                 scope_id,
                 f"待办：{', '.join(items)}",
                 kind="todo",
@@ -110,9 +122,10 @@ def main(argv: list[str] | None = None) -> int:
         state = _state(settings)
         try:
             scope_id = state.ensure_scope(args.task_id)
-            state.remember(scope_id, args.summary, kind="done", reason="任务完成")
+            _remember_once(state, scope_id, args.summary, kind="done", reason="任务完成")
             if args.log:
-                state.remember(
+                _remember_once(
+                    state,
                     scope_id,
                     f"验证结果：{args.summary}\n{_tail(args.log)}",
                     kind="verified",
