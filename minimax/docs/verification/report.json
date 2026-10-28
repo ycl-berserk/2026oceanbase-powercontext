@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-28T19:19:04",
+  "generated_at": "2026-10-28T19:26:26",
   "root": "/home/wuren/pc-minimax/minimax",
   "ok": true,
   "checks": [
@@ -46,12 +46,12 @@
     {
       "check": "pc-write",
       "ok": true,
-      "detail": "scope=scp_3krpqyxx94qfbvn3xf4h66f5fa 写入 1 条记录（空状态开始）"
+      "detail": "scope=scp_3w3p0phsj3mvp9r4abjkt19zb1 写入 1 条记录（空状态开始）"
     },
     {
       "check": "pc-restart",
       "ok": true,
-      "detail": "新进程读回 scope=scp_3krpqyxx94qfbvn3xf4h66f5fa todo=['待办：R4,R5,R6']"
+      "detail": "新进程读回 scope=scp_3w3p0phsj3mvp9r4abjkt19zb1 todo=['待办：R4,R5,R6']"
     },
     {
       "check": "red-green",
